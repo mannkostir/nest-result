@@ -149,7 +149,7 @@ function toHttp<T, E extends Tagged>(
 
 - `Ok(value)` resolves to `value` unchanged, so interceptors such as `ClassSerializerInterceptor` still apply.
 - `Err(error)` rejects with a Nest `HttpException` carrying the resolved status and body, so existing exception filters and logging keep working on both Express and Fastify.
-- The runtime failures from 4.3 surface as `InternalServerErrorException`, with the original library error attached as `cause` and logged through Nest's `Logger`, naming the tag.
+- The runtime failures from 4.3 are thrown as the typed library errors themselves. They are not `HttpException`s, so Nest's exception handler responds with 500 and logs them with their message and stack, which names the tag. The library contains no logging code of its own.
 
 ### 5.2 `MapErrors`
 
@@ -172,9 +172,9 @@ find(@Param('id') id: string): ResultAsync<Deal, DealNotFound | AccessDenied> {
 For each handler return value:
 - a non-Result value passes through untouched;
 - a Result or `ResultAsync` on a method with `MapErrors` metadata is converted with the same code path as `toHttp`;
-- a Result on a method without `MapErrors` metadata becomes a 500 and a log line naming the controller class and method (`MissingErrorMapError`).
+- a Result on a method without `MapErrors` metadata throws `MissingErrorMapError`, naming the controller class and method; Nest responds with 500 and logs it.
 
-Result detection uses `instanceof` against `Ok`, `Err` and `ResultAsync` imported from the `neverthrow` peer, so there is a single class identity. If a return value fails those checks but is Result-shaped (it has callable `isOk` and `isErr`, or is a thenable with `andThen` and `mapErr`), the interceptor treats it as a sign of duplicate `neverthrow` copies: it responds with a 500 and logs, once per process, a warning naming the likely cause (`DuplicateNeverthrowError`).
+Result detection uses `instanceof` against `Ok`, `Err` and `ResultAsync` imported from the `neverthrow` peer, so there is a single class identity. If a return value fails those checks but is Result-shaped (it has callable `isOk` and `isErr`, or is a thenable with `andThen` and `mapErr`), the interceptor treats it as a sign of duplicate `neverthrow` copies: it throws `DuplicateNeverthrowError`, naming the handler and the likely cause; Nest responds with 500 and logs it.
 
 ## 6. Swagger
 
@@ -252,5 +252,5 @@ CI matrix: NestJS 11 and 12, Node 22 and 24, neverthrow 8. Type tests and diagno
 | Decorator type errors are unreadable | Spike first; diagnostic snapshot tests; function API does not depend on decorators |
 | Small audience | Accepted; scope kept small and polished |
 | neverthrow release pace slows | Peer dependency keeps coupling to a narrow API surface: `Ok`, `Err`, `ResultAsync`, `isOk`, `isErr` |
-| Duplicate neverthrow copies break `instanceof` | Result-shaped values that fail `instanceof` produce a 500 and a one-time warning naming the cause |
+| Duplicate neverthrow copies break `instanceof` | Result-shaped values that fail `instanceof` throw `DuplicateNeverthrowError`, which Nest turns into a 500 and a logged error naming the cause |
 | `@nestjs-cls/transactional` internals change | Depend only on its public `TransactionHost.withTransaction` and decorator conventions; cover with integration tests in the CI matrix |
