@@ -6,21 +6,24 @@
 
 **Architecture:** A pure `src/core` (no Nest imports) holds tagged errors, the type-level error-map rules and error resolution. `src/http` adapts the core to Nest (`toHttp`, `MapErrors`, `ResultInterceptor`, `ResultModule`). `src/swagger` and `src/transactional` are separate entry points so their optional peers are only needed when imported. Dependencies point inward to `core` only.
 
-**Tech Stack:** TypeScript 6.0 (dev), neverthrow 8, NestJS 12 (11 supported), nestjs-cls 7 + @nestjs-cls/transactional 4, vitest 5 + unplugin-swc, tsup 8, publint, @arethetypeswrong/cli, changesets, TypeORM 1 + better-sqlite3 12 (tests only).
+**Tech Stack:** TypeScript 6.0 (dev), neverthrow 8, NestJS 12 (11 supported), nestjs-cls 7 + @nestjs-cls/transactional 4, vitest 5 + unplugin-swc, tsup 8, publint, @arethetypeswrong/cli, TypeORM 1 + better-sqlite3 12 (tests only). Releases go through a GitHub Release and npm trusted publishing, as in the author's `nestjs-kafka`.
 
 **Spec:** `docs/superpowers/specs/2026-09-30-nest-result-design.md`
+
+**Project rules:** `CLAUDE.md` at the repo root. It applies to every task and wins over this plan wherever they differ.
 
 **Validation note:** Every source file and every test in this plan was compiled and run in a throwaway prototype before the plan was written: 58 tests green, type tests green on TypeScript 5.5.4, 6.0.3 and 7.0.2, dual build clean under publint and attw. Deviations from the code below should be treated as suspect.
 
 ## Global Constraints
 
-- Work on branch `feat/initial-release`, created from `main` in Task 1. Never push, publish, or create remote repositories; those are the author's decisions.
+- Work on branch `initial-release`, which already exists. Never push, publish, tag, or create remote repositories or Releases; those are the author's decisions.
 - Zero comments in any file: no `//`, `/* */` or `/** */`, in source or tests. The only permitted exception is the `// @ts-expect-error` directive in type-test and fixture files.
 - ESM package (`"type": "module"`); relative imports use `.js` extensions (`moduleResolution: nodenext`).
-- Node `>=22`. Consumers need TypeScript `>=5.5`. The repo builds with TypeScript `~6.0.3`, because TypeScript 7 has no JavaScript compiler API and tsup's declaration build and attw need it.
+- Node `>=22.12.0` (the CommonJS entry points load the ESM build through `require(esm)`). Consumers need TypeScript `>=5.5`. The repo builds with TypeScript `~6.0.3`, because TypeScript 7 has no JavaScript compiler API and tsup's declaration build and attw need it.
 - Peer ranges: `neverthrow ^8.0.0`, `@nestjs/common` and `@nestjs/core` `^11.0.0 || ^12.0.0`, `rxjs ^7.1.0`, `reflect-metadata ^0.1.12 || ^0.2.0`; optional peers `@nestjs/swagger ^11.0.0 || ^12.0.0`, `nestjs-cls ^7.0.0`, `@nestjs-cls/transactional ^4.0.0`.
 - Library classes that Nest instantiates must use explicit `@Inject(...)` on constructor parameters, because tsup (esbuild) does not emit decorator metadata.
-- Every commit message ends with the trailer `Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>`.
+- Commit messages are a subject line only: lowercase, imperative, 2-6 words, no conventional-commit prefix, no trailing period, no body, no `Co-Authored-By` or other trailer. Use exactly the subject given in each task's commit step.
+- `dist` holds exactly one implementation: ESM `.js` files. Each `.cjs` entry point is a one-line wrapper that `require`s the matching `.js` file. Never ship a second CommonJS implementation.
 - Test style: Arrange-Act-Assert, one claim per test, no conditionals or loops in test bodies.
 
 ## Review Focus
@@ -44,12 +47,14 @@
 - Consumes: nothing.
 - Produces: `TaggedError<const Tag extends string>(tag: Tag): TaggedErrorClass<Tag>`; types `TaggedErrorPayload`, `TaggedErrorInstance<Tag, P>`, `TaggedErrorClass<Tag>`. Subclass usage: `class X extends TaggedError('X')<{ field: string }> {}`.
 
-- [ ] **Step 1: Create the branch**
+- [ ] **Step 1: Confirm the branch**
 
 ```bash
 cd /Users/mannkostir/Documents/nodejs-result
-git checkout -b feat/initial-release
+git branch --show-current
 ```
+
+Expected: `initial-release`.
 
 - [ ] **Step 2: Write `package.json`**
 
@@ -63,7 +68,7 @@ git checkout -b feat/initial-release
   "type": "module",
   "sideEffects": false,
   "engines": {
-    "node": ">=22"
+    "node": ">=22.12.0"
   },
   "files": ["dist"],
   "scripts": {
@@ -148,6 +153,9 @@ dist/
 coverage/
 examples/*/node_modules/
 examples/*/dist/
+.ts-matrix/
+.claude/
+.mcp.json
 ```
 
 `LICENSE`:
@@ -326,7 +334,7 @@ Expected: 10 tests PASS; typecheck exits 0 with no output.
 
 ```bash
 git add package.json package-lock.json tsconfig.json vitest.config.ts .gitignore LICENSE src test
-git commit -m "feat: scaffold package and add TaggedError" -m "Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>"
+git commit -m "scaffold package with tagged errors"
 ```
 
 ---
@@ -499,7 +507,7 @@ Expected: all three exit 0 with no output.
 
 ```bash
 git add src test
-git commit -m "feat: add type-level error map rules" -m "Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>"
+git commit -m "add error map types"
 ```
 
 ---
@@ -702,7 +710,7 @@ Expected: 21 tests PASS (10 from Task 1, 11 new); typecheck exits 0.
 
 ```bash
 git add src test
-git commit -m "feat: resolve tagged errors to HTTP responses" -m "Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>"
+git commit -m "resolve tagged errors to http"
 ```
 
 ---
@@ -888,7 +896,7 @@ Expected: 8 tests PASS; typecheck exits 0.
 
 ```bash
 git add package.json package-lock.json src test
-git commit -m "feat: add toHttp with exhaustive error maps" -m "Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>"
+git commit -m "map results to http"
 ```
 
 ---
@@ -1297,7 +1305,7 @@ Expected: 23 tests PASS (7 per platform × 2, the safety-net test, and 8 `toHttp
 
 ```bash
 git add package.json package-lock.json src test
-git commit -m "feat: add MapErrors decorator, ResultInterceptor and ResultModule" -m "Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>"
+git commit -m "add map errors decorator"
 ```
 
 ---
@@ -1559,7 +1567,7 @@ Expected: PASS, writing `test/diagnostics/__snapshots__/diagnostics.snapshot.tes
 
 ```bash
 git add package.json test vitest.snapshot.config.ts
-git commit -m "test: pin compiler diagnostics for mapping mistakes" -m "Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>"
+git commit -m "pin compiler diagnostics"
 ```
 
 ---
@@ -1676,7 +1684,7 @@ Expected: 1 test PASS; typecheck exits 0.
 
 ```bash
 git add package.json package-lock.json src test
-git commit -m "feat: add Swagger-aware MapErrors entry point" -m "Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>"
+git commit -m "add swagger entry point"
 ```
 
 ---
@@ -1893,7 +1901,7 @@ Expected: 8 tests PASS; typecheck exits 0.
 
 ```bash
 git add package.json package-lock.json src test
-git commit -m "feat: add withResultTransaction that rolls back on Err" -m "Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>"
+git commit -m "roll back transactions on err"
 ```
 
 ---
@@ -2207,7 +2215,7 @@ Expected: exactly `rolls back when the method returns Err` and `rolls back only 
 
 ```bash
 git add package.json package-lock.json src test
-git commit -m "feat: add TransactionalResult decorator" -m "Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>"
+git commit -m "add transactional result decorator"
 ```
 
 ---
@@ -2215,12 +2223,12 @@ git commit -m "feat: add TransactionalResult decorator" -m "Co-Authored-By: Clau
 ### Task 10: Build and package verification
 
 **Files:**
-- Create: `tsup.config.ts`, `tsconfig.build.json`, `vitest.package.config.ts`, `test/package/smoke.test.ts`
+- Create: `tsup.config.ts`, `tsconfig.build.json`, `scripts/write-cjs-entry-points.js`, `vitest.package.config.ts`, `test/package/smoke.test.ts`
 - Modify: `package.json`, `vitest.config.ts`
 
 **Interfaces:**
 - Consumes: the three entry points `src/index.ts`, `src/swagger/index.ts`, `src/transactional/index.ts`.
-- Produces: `dist/{index,swagger,transactional}.{js,cjs,d.ts,d.cts}`; the `exports` map; the scripts `build`, `test:package`, `lint:package`, `check`.
+- Produces: `dist/{index,swagger,transactional}.{js,d.ts,d.cts}` plus shared ESM chunks, and `dist/{index,swagger,transactional}.cjs` wrappers; the `exports` map; the scripts `build`, `test:package`, `lint:package`, `check`.
 
 - [ ] **Step 1: Install build tooling**
 
@@ -2239,6 +2247,23 @@ function run(args: readonly string[]): string {
 }
 
 describe('built package', () => {
+  it('shares one implementation between require and import', () => {
+    const output = run([
+      '--input-type=module',
+      '-e',
+      "import { createRequire } from 'node:module'; const require = createRequire(import.meta.url); const required = [require('nest-result').MapErrors, require('nest-result').UnmappedErrorTagError, require('nest-result/transactional').TransactionalResult]; const imported = [(await import('nest-result')).MapErrors, (await import('nest-result')).UnmappedErrorTagError, (await import('nest-result/transactional')).TransactionalResult]; console.log(required.every((value, index) => value === imported[index]))",
+    ]);
+    expect(output).toBe('true');
+  });
+
+  it('refuses deep imports into dist', () => {
+    const output = run([
+      '-e',
+      "try { require('nest-result/dist/index.js'); console.log('resolved') } catch (error) { console.log(error.code) }",
+    ]);
+    expect(output).toBe('ERR_PACKAGE_PATH_NOT_EXPORTED');
+  });
+
   it('loads every entry point through require', () => {
     const output = run([
       '-e',
@@ -2258,7 +2283,7 @@ describe('built package', () => {
 });
 ```
 
-The package resolves itself by name through its own `exports` map, so these tests exercise the built `dist` exactly as consumers do.
+The package resolves itself by name through its own `exports` map, so these tests exercise the built `dist` exactly as consumers do. The first test is the single-copy guarantee: a CommonJS host and an ESM host must get the very same classes.
 
 - [ ] **Step 3: Keep the smoke test out of the default run and give it its own config**
 
@@ -2298,6 +2323,25 @@ Expected: FAIL, `Cannot find module 'nest-result'` (no `exports` map or `dist` y
 ```
 
 `ignoreDeprecations` is required: tsup's declaration step injects `baseUrl`, which TypeScript 6 flags as deprecated (TS5101).
+
+tsup still builds both formats, because its CommonJS pass is what produces the `.d.cts` declarations. `scripts/write-cjs-entry-points.js` then deletes every compiled `.cjs` file and writes one wrapper per entry point, so CommonJS hosts load the ESM implementation through `require(esm)`:
+
+```js
+import { readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
+
+const dist = join(import.meta.dirname, '..', 'dist');
+const entryPoints = ['index', 'swagger', 'transactional'];
+const isCompiledCommonJs = (file) => file.endsWith('.cjs') || file.endsWith('.cjs.map');
+
+readdirSync(dist)
+  .filter(isCompiledCommonJs)
+  .forEach((file) => rmSync(join(dist, file)));
+
+entryPoints.forEach((entryPoint) =>
+  writeFileSync(join(dist, `${entryPoint}.cjs`), `module.exports = require('./${entryPoint}.js');\n`),
+);
+```
 
 `tsup.config.ts`:
 
@@ -2357,7 +2401,7 @@ Replace `scripts` with:
 
 ```json
 "scripts": {
-  "build": "tsup",
+  "build": "tsup && node scripts/write-cjs-entry-points.js",
   "typecheck": "tsc -p tsconfig.json",
   "test": "vitest run",
   "test:diagnostics-snapshot": "vitest run --config vitest.snapshot.config.ts",
@@ -2370,116 +2414,93 @@ Replace `scripts` with:
 - [ ] **Step 6: Build and verify**
 
 Run: `npm run build && npm run test:package && npm run lint:package`
-Expected: `dist/` contains `index.js`, `index.cjs`, `index.d.ts`, `index.d.cts` and the same for `swagger` and `transactional`; 2 smoke tests PASS; publint reports no errors or warnings; attw prints `No problems found 🌟`.
+Expected: `dist/` contains `index.js`, `index.cjs`, `index.d.ts`, `index.d.cts` and the same for `swagger` and `transactional`, plus `chunk-*.js` files and no other `.cjs` file; `cat dist/index.cjs` prints `module.exports = require('./index.js');`; 4 smoke tests PASS; `publint --strict` prints `All good!`; attw prints `No problems found 🌟`.
 
 - [ ] **Step 7: Run the whole check**
 
 Run: `npm run check`
-Expected: exits 0. `npm test` reports 69 tests (21 core, 23 http, 8 diagnostics, 1 swagger, 16 transactional) and `test:package` reports 2.
+Expected: exits 0. `npm test` reports 69 tests (21 core, 23 http, 8 diagnostics, 1 swagger, 16 transactional) and `test:package` reports 4.
 
 - [ ] **Step 8: Commit**
 
 ```bash
-git add package.json package-lock.json tsup.config.ts tsconfig.build.json vitest.config.ts vitest.package.config.ts test/package
-git commit -m "build: ship dual ESM and CJS with three entry points" -m "Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>"
+git add package.json package-lock.json tsup.config.ts tsconfig.build.json scripts vitest.config.ts vitest.package.config.ts test/package
+git commit -m "ship single-copy dual build"
 ```
 
 ---
 
-### Task 11: CI matrix and release tooling
+### Task 11: CI and publish workflows
 
 **Files:**
-- Create: `.github/workflows/ci.yml`, `.github/workflows/release.yml`, `.changeset/config.json`, `.changeset/README.md`, `.changeset/initial-release.md`
-- Modify: `package.json`
+- Create: `.github/workflows/ci.yml`, `.github/workflows/publish.yml`
 
 **Interfaces:**
-- Consumes: the scripts from Task 10 and `TSC_BIN` from Task 6.
-- Produces: CI running on push and pull request; a release workflow that opens a version PR and publishes with provenance once the author adds an `NPM_TOKEN` secret.
+- Consumes: the scripts from Tasks 6, 10 and 12, and `TSC_BIN` from Task 6.
+- Produces: `ci` on push and pull request, callable from `publish`; `publish` triggered by a published GitHub Release, staging the package through npm trusted publishing. Both follow the author's `nestjs-kafka` workflows.
 
-- [ ] **Step 1: Install and initialise changesets**
-
-```bash
-npm install -D @changesets/cli@^3.0.3
-npx changeset init
-```
-
-Then set `.changeset/config.json` to:
-
-```json
-{
-  "$schema": "https://unpkg.com/@changesets/config@3.1.1/schema.json",
-  "changelog": "@changesets/cli/changelog",
-  "commit": false,
-  "fixed": [],
-  "linked": [],
-  "access": "public",
-  "baseBranch": "main",
-  "updateInternalDependencies": "patch",
-  "ignore": []
-}
-```
-
-Write `.changeset/initial-release.md`:
-
-```md
----
-"nest-result": minor
----
-
-First release: TaggedError, compiler-checked exhaustive error maps with toHttp and MapErrors, ResultModule safety net, Swagger response documentation, and Result-aware transactions for @nestjs-cls/transactional.
-```
-
-- [ ] **Step 2: Write `.github/workflows/ci.yml`**
+- [ ] **Step 1: Write `.github/workflows/ci.yml`**
 
 ```yaml
-name: CI
+name: ci
 
 on:
   push:
     branches: [main]
   pull_request:
-
-permissions:
-  contents: read
+  workflow_call:
 
 jobs:
-  test:
-    name: Node ${{ matrix.node }} / NestJS ${{ matrix.nest }}
+  verify:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     strategy:
       fail-fast: false
       matrix:
-        node: [22, 24]
         nest: [11, 12]
+    name: verify (nest ${{ matrix.nest }})
     steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-node@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
-          node-version: ${{ matrix.node }}
+          node-version: 24
           cache: npm
-      - name: Install with NestJS 12
-        if: matrix.nest == 12
+      - if: matrix.nest == 12
         run: npm ci
-      - name: Install with NestJS 11
-        if: matrix.nest == 11
+      - if: matrix.nest == 11
         run: |
           npm pkg set devDependencies.@nestjs/common=^11 devDependencies.@nestjs/core=^11 devDependencies.@nestjs/testing=^11 devDependencies.@nestjs/platform-express=^11 devDependencies.@nestjs/platform-fastify=^11 devDependencies.@nestjs/swagger=^11
           rm -rf node_modules package-lock.json
           npm install
-      - name: Assert the NestJS major under test
-        run: test "$(node -p "JSON.parse(require('fs').readFileSync('node_modules/@nestjs/core/package.json','utf8')).version.split('.')[0]")" = "${{ matrix.nest }}"
+      - run: |
+          node -e "process.exit(require('./node_modules/@nestjs/core/package.json').version.startsWith('${{ matrix.nest }}.') ? 0 : 1)"
       - run: npm run check
 
-  typescript:
-    name: TypeScript ${{ matrix.typescript }}
+  load:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
+    name: load (node 22.12.0)
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22.12.0
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - run: npm run test:package
+
+  typescript:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
     strategy:
       fail-fast: false
       matrix:
         typescript: ['5.5.4', '6.0.3', '7.0.2']
+    name: typescript ${{ matrix.typescript }}
     steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-node@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: 24
           cache: npm
@@ -2491,11 +2512,12 @@ jobs:
           TSC_BIN: .ts-matrix/node_modules/.bin/tsc
 
   diagnostics-snapshot:
-    name: Diagnostics snapshot
     runs-on: ubuntu-latest
+    timeout-minutes: 10
+    name: diagnostics snapshot
     steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-node@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: 24
           cache: npm
@@ -2503,11 +2525,12 @@ jobs:
       - run: npm run test:diagnostics-snapshot
 
   example:
-    name: Example app against the packed tarball
     runs-on: ubuntu-latest
+    timeout-minutes: 10
+    name: example
     steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-node@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: 24
           cache: npm
@@ -2515,61 +2538,129 @@ jobs:
       - run: npm run example:build
 ```
 
-NestJS 11 cannot be selected with `npm install --no-save`: npm keeps the lockfile's 12.x resolution and only warns. The job therefore rewrites the dev ranges and resolves from scratch, and the assert step fails the job if the wrong major is installed. The `example` job runs the script added in Task 12. Until Task 12 lands, that job fails; this is expected on this branch.
+The Nest 11 leg rewrites the dev ranges and resolves from scratch: `npm install --no-save @nestjs/...@11` keeps the lockfile's 12.x here, because other dev dependencies peer on Nest. The assertion step fails the job if the wrong major is installed. The `example` job runs the script added in Task 12; until Task 12 lands it fails, which is expected on this branch.
 
-- [ ] **Step 3: Write `.github/workflows/release.yml`**
+- [ ] **Step 2: Write `.github/workflows/publish.yml`**
 
 ```yaml
-name: Release
+name: publish
 
 on:
-  push:
-    branches: [main]
-
-concurrency: release-${{ github.ref }}
+  release:
+    types: [published]
 
 permissions:
-  contents: write
-  pull-requests: write
-  id-token: write
+  contents: read
+
+concurrency:
+  group: publish-${{ github.event.release.tag_name }}
+  cancel-in-progress: false
 
 jobs:
-  release:
+  guard:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      dist-tag: ${{ steps.guard.outputs.dist-tag }}
     steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-node@v5
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v7
         with:
           node-version: 24
-          cache: npm
-          registry-url: https://registry.npmjs.org
-      - run: npm ci
-      - run: npm run check
-      - uses: changesets/action@v1
-        with:
-          publish: npx changeset publish
+          package-manager-cache: false
+      - id: guard
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-          NPM_CONFIG_PROVENANCE: true
+          TAG: ${{ github.event.release.tag_name }}
+          PRERELEASE: ${{ github.event.release.prerelease }}
+        run: |
+          set -euo pipefail
+          name=$(node -p "require('./package.json').name")
+          version=$(node -p "require('./package.json').version")
+          if [ "$TAG" != "v$version" ]; then
+            echo "::error::Release tag $TAG does not match package.json version $version. The Release tag must be v$version on the commit that carries that version. Delete this Release and publish a new one."
+            exit 1
+          fi
+          if ! git merge-base --is-ancestor HEAD origin/main; then
+            echo "::error::Release tag $TAG points at a commit that is not on main. Merge the version bump to main, tag that commit, delete this Release, and publish a new one."
+            exit 1
+          fi
+          core=${version%%+*}
+          if [[ "$core" == *-* ]]; then
+            expected_prerelease=true
+            dist_tag=next
+          else
+            expected_prerelease=false
+            dist_tag=latest
+          fi
+          if [ "$PRERELEASE" != "$expected_prerelease" ]; then
+            echo "::error::Version $version needs the Release's pre-release box set to $expected_prerelease, but it is $PRERELEASE. Delete this Release and publish a new one from tag $TAG with the pre-release box set to $expected_prerelease."
+            exit 1
+          fi
+          if npm view "$name@$version" version >"$RUNNER_TEMP/npm-view.out" 2>"$RUNNER_TEMP/npm-view.err"; then
+            if [ -s "$RUNNER_TEMP/npm-view.out" ]; then
+              echo "::error::$name@$version is already published. Bump the version in package.json."
+              exit 1
+            fi
+          elif ! grep -q E404 "$RUNNER_TEMP/npm-view.err"; then
+            echo "::error::Could not check whether $name@$version is already published."
+            cat "$RUNNER_TEMP/npm-view.err"
+            exit 1
+          fi
+          echo "dist-tag=$dist_tag" >> "$GITHUB_OUTPUT"
+
+  ci:
+    needs: guard
+    uses: ./.github/workflows/ci.yml
+
+  stage:
+    needs: [guard, ci]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+          package-manager-cache: false
+      - run: npm install -g npm@11.20.0
+      - run: npm ci --ignore-scripts
+      - run: npm run build
+      - env:
+          DIST_TAG: ${{ needs.guard.outputs.dist-tag }}
+        run: |
+          if [ "$DIST_TAG" = next ]; then
+            npm stage publish --ignore-scripts --loglevel verbose --tag next
+          else
+            npm stage publish --ignore-scripts --loglevel verbose
+          fi
 ```
 
-- [ ] **Step 4: Validate the workflow files parse**
+`npm ci --ignore-scripts` in `stage` skips the native `better-sqlite3` build, which publishing does not need.
 
-Run: `npx -y js-yaml .github/workflows/ci.yml > /dev/null && npx -y js-yaml .github/workflows/release.yml > /dev/null && echo ok` and `npx changeset status`
-Expected: `ok`; changeset status lists `nest-result` with a minor bump.
+- [ ] **Step 3: Validate both workflow files parse**
 
-- [ ] **Step 5: Reproduce the TypeScript matrix locally**
+Run: `npx -y js-yaml .github/workflows/ci.yml > /dev/null && npx -y js-yaml .github/workflows/publish.yml > /dev/null && echo ok`
+Expected: `ok`.
+
+- [ ] **Step 4: Reproduce the TypeScript and floor legs locally**
 
 Run: `npm install --prefix .ts-matrix typescript@7.0.2 && .ts-matrix/node_modules/.bin/tsc -p tsconfig.json && TSC_BIN=.ts-matrix/node_modules/.bin/tsc npx vitest run test/diagnostics/diagnostics.test.ts`
-Expected: tsc exits 0; 8 tests PASS. Add `.ts-matrix/` to `.gitignore`.
+Expected: tsc exits 0; 8 tests PASS.
 
-- [ ] **Step 6: Commit**
+Then run the load leg on the floor version: `npx -y node@22.12.0 --version` to confirm it is fetchable, and `npm run build && npx -y -p node@22.12.0 node -e "require('nest-result'); console.log('loaded')"`.
+Expected: `v22.12.0`, then `loaded`.
+
+- [ ] **Step 5: Commit**
 
 ```bash
-git add .github .changeset package.json package-lock.json .gitignore
-git commit -m "ci: add test matrix and changesets release workflow" -m "Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>"
+git add .github
+git commit -m "add ci and publish workflows"
 ```
 
 ---
@@ -2760,6 +2851,8 @@ Return typed errors from your NestJS handlers and let the compiler prove every o
 
 Built on [neverthrow](https://github.com/supermacro/neverthrow). Works with Express and Fastify, NestJS 11 and 12.
 
+**Status: pre-1.0 (`0.0.0`).** The public API may still change between versions.
+
 ```bash
 npm install nest-result neverthrow
 ```
@@ -2900,7 +2993,9 @@ To discard the inner work independently, use `Propagation.Nested` (a savepoint) 
 
 ## Requirements
 
-Node 22+, TypeScript 5.5+, `experimentalDecorators`, NestJS 11 or 12, neverthrow 8.
+Node 22.12+, TypeScript 5.5+, `experimentalDecorators`, NestJS 11 or 12, neverthrow 8.
+
+A CommonJS host on NestJS 12 needs a TypeScript version and `moduleResolution` that understand `require` of ES modules: TypeScript 5.8+ with `module: nodenext`. Older combinations report TS1479 on NestJS's own imports before they reach this package.
 
 ## Example
 
@@ -2920,7 +3015,7 @@ Expected: both exit 0. Confirm the error output quoted in the README appears in 
 
 ```bash
 git add README.md examples package.json
-git commit -m "docs: add README and runnable example app" -m "Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>"
+git commit -m "add readme and example app"
 ```
 
 ---
@@ -2929,5 +3024,5 @@ git commit -m "docs: add README and runnable example app" -m "Co-Authored-By: Cl
 
 These are the author's decisions and are not part of any task:
 - choosing the final npm name (`nest-result` was free on 2026-09-30);
-- creating the GitHub repository and pushing;
-- adding the `NPM_TOKEN` secret and merging the changesets version PR to publish 0.1.0.
+- creating the GitHub repository under the personal `mannkostir` account and pushing with plain `git`;
+- configuring npm trusted publishing for the repository's `publish.yml`, then following the Releasing steps in `CLAUDE.md` for `0.1.0`.

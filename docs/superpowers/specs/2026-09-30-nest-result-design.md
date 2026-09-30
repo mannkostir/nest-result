@@ -56,7 +56,7 @@ The npm name `nest-result` was unregistered on 2026-09-30. It may be changed bef
 | `nest-result/swagger` | `MapErrors` that also emits `@ApiResponse` metadata | `@nestjs/swagger` |
 | `nest-result/transactional` | `withResultTransaction`, `TransactionalResult` | `nestjs-cls`, `@nestjs-cls/transactional` |
 
-Required peer dependencies: `neverthrow` ^8, `@nestjs/common` and `@nestjs/core` ^11 || ^12, `rxjs` ^7, `reflect-metadata`. Consumers need Node 22 or later and TypeScript 5.5 or later. NestJS 12 is ESM-only and NestJS 11 is CommonJS, so both module formats are shipped. `@nestjs/swagger`, `nestjs-cls` and `@nestjs-cls/transactional` are optional peers and are imported only from their own entry points.
+Required peer dependencies: `neverthrow` ^8, `@nestjs/common` and `@nestjs/core` ^11 || ^12, `rxjs` ^7, `reflect-metadata`. Consumers need Node 22 or later and TypeScript 5.5 or later. NestJS 12 is ESM-only and NestJS 11 is CommonJS, so both module formats are shipped. The `nest-result` and `nest-result/swagger` entry points have a single ESM implementation, and their CommonJS files load it through `require(esm)`, so CommonJS and ESM hosts share one copy of every class. `nest-result/transactional` ships a real CommonJS build, because `nestjs-cls` and `@nestjs-cls/transactional` have separate ESM and CJS copies and the host's plugin registration lives in the copy that matches its module format; the transactional code shares no class identity with the other entry points, so a second copy of it is harmless. `@nestjs/swagger`, `nestjs-cls` and `@nestjs-cls/transactional` are optional peers and are imported only from their own entry points.
 
 ### 3.2 Source layers
 
@@ -226,13 +226,13 @@ If `nestjs-cls` or the transactional plugin is not configured, the plugin's own 
 3. **Compiler-diagnostic snapshots**: fixture files containing the common mistakes are compiled with `tsc`, and the diagnostic text is snapshotted. This measures and guards the readability of the errors developers will actually see.
 4. **Integration tests** with `@nestjs/testing` and supertest on both Express and Fastify, covering `toHttp`, `MapErrors` with `ResultModule`, a missing-metadata 500, compatibility with an existing exception filter, and Swagger document output. Transaction integration tests run against in-memory SQLite through the TypeORM adapter for `@nestjs-cls/transactional`, including `Propagation.Nested` savepoint rollback and the nested recover-and-commit case from 7.3.
 
-CI matrix: NestJS 11 and 12, Node 22 and 24, neverthrow 8. Type tests and diagnostic checks run against TypeScript 5.5, 6 and 7 through the `tsc` command-line tool. The repository itself builds with TypeScript 6, because TypeScript 7 has no JavaScript compiler API and the declaration bundler and package linter depend on it.
+CI matrix: NestJS 11 and 12 and neverthrow 8; the full suite runs on Node 24. The Node 22.12.0 floor is verified by the `load` job's build and package tests, which include the CommonJS-host transactional test. Type tests and diagnostic checks run against TypeScript 5.5, 6 and 7 through the `tsc` command-line tool. The repository itself builds with TypeScript 6, because TypeScript 7 has no JavaScript compiler API and the declaration bundler and package linter depend on it.
 
 ## 9. Tooling, release and docs
 
 - TypeScript strict mode; ESM and CJS builds with tsup and an `exports` map covering the three entry points; type declarations for both formats.
 - Code style follows the author's standards, including no comments; `@ts-expect-error` in type tests is the only directive used.
-- MIT licence; changesets for versions and changelog; npm publish with provenance from GitHub Actions; releases start at `0.1.0`.
+- MIT licence; releases follow the author's `nestjs-kafka` flow: a version-bump PR (`prepare <version>`), a GitHub Release `v<version>`, and a guarded `publish.yml` that stages the package through npm trusted publishing with provenance; releases start at `0.1.0`.
 - README opens with a 60-second example: a tagged error, a service, a controller with `MapErrors`, and the compile error produced by a missing mapping. Recipes follow for Swagger, transactions, nested propagation, and migrating from a hand-rolled interceptor.
 - A runnable example application in `examples/`.
 

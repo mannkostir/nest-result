@@ -1,0 +1,97 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        nest: [11, 12]
+    name: verify (nest ${{ matrix.nest }})
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+      - if: matrix.nest == 12
+        run: npm ci
+      - if: matrix.nest == 11
+        run: |
+          npm pkg set devDependencies.@nestjs/common=^11 devDependencies.@nestjs/core=^11 devDependencies.@nestjs/testing=^11 devDependencies.@nestjs/platform-express=^11 devDependencies.@nestjs/platform-fastify=^11 devDependencies.@nestjs/swagger=^11
+          rm -rf node_modules package-lock.json
+          npm install
+      - run: |
+          node -e "process.exit(require('./node_modules/@nestjs/core/package.json').version.startsWith('${{ matrix.nest }}.') ? 0 : 1)"
+      - run: npm run check
+
+  load:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    name: load (node 22.12.0)
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22.12.0
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - run: npm run test:package
+
+  typescript:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        typescript: ['5.5.4', '6.0.3', '7.0.2']
+    name: typescript ${{ matrix.typescript }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm install --prefix .ts-matrix typescript@${{ matrix.typescript }}
+      - run: .ts-matrix/node_modules/.bin/tsc -p tsconfig.json
+      - run: npx vitest run test/diagnostics/diagnostics.test.ts
+        env:
+          TSC_BIN: .ts-matrix/node_modules/.bin/tsc
+
+  diagnostics-snapshot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    name: diagnostics snapshot
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run test:diagnostics-snapshot
+
+  example:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    name: example
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run example:build

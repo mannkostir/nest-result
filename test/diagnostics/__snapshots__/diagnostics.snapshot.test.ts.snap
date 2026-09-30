@@ -1,0 +1,52 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`compiler diagnostics text > matches the recorded diagnostics for every fixture 1`] = `
+[
+  [
+    "decorator-body-mismatch",
+    "test/diagnostics/fixtures/decorator-body-mismatch.ts(8,4): error TS1241: Unable to resolve signature of method decorator when called as an expression.
+  Argument of type 'TypedPropertyDescriptor<() => ResultAsync<number, DealNotFound | AccessDenied>>' is not assignable to parameter of type 'TypedPropertyDescriptor<() => ResultAsync<number, DealNotFound | AccessDenied>> & ErrorBodyParameterMismatch<{ readonly DealNotFound: { ...; }; readonly AccessDenied: 403; }>'.
+    Property '__errorBodyParameterMismatch' is missing in type 'TypedPropertyDescriptor<() => ResultAsync<number, DealNotFound | AccessDenied>>' but required in type 'ErrorBodyParameterMismatch<{ readonly DealNotFound: { readonly status: 404; readonly body: (error: AccessDenied) => { tag: "AccessDenied"; }; }; readonly AccessDenied: 403; }>'.
+",
+  ],
+  [
+    "decorator-missing-key",
+    "test/diagnostics/fixtures/decorator-missing-key.ts(8,4): error TS1241: Unable to resolve signature of method decorator when called as an expression.
+  Argument of type 'TypedPropertyDescriptor<() => ResultAsync<number, DealNotFound | AccessDenied>>' is not assignable to parameter of type 'TypedPropertyDescriptor<() => ResultAsync<number, DealNotFound | AccessDenied>> & MissingErrorMapKeys<"AccessDenied">'.
+    Property '__missingErrorMapKeys' is missing in type 'TypedPropertyDescriptor<() => ResultAsync<number, DealNotFound | AccessDenied>>' but required in type 'MissingErrorMapKeys<"AccessDenied">'.
+",
+  ],
+  [
+    "decorator-stale-key",
+    "test/diagnostics/fixtures/decorator-stale-key.ts(8,4): error TS1241: Unable to resolve signature of method decorator when called as an expression.
+  Argument of type 'TypedPropertyDescriptor<() => ResultAsync<number, DealNotFound>>' is not assignable to parameter of type 'TypedPropertyDescriptor<() => ResultAsync<number, DealNotFound>> & StaleErrorMapKeys<"Stale">'.
+    Property '__staleErrorMapKeys' is missing in type 'TypedPropertyDescriptor<() => ResultAsync<number, DealNotFound>>' but required in type 'StaleErrorMapKeys<"Stale">'.
+",
+  ],
+  [
+    "decorator-untagged",
+    "test/diagnostics/fixtures/decorator-untagged.ts(8,4): error TS1241: Unable to resolve signature of method decorator when called as an expression.
+  Argument of type 'TypedPropertyDescriptor<() => Result<number, Error | DealNotFound>>' is not assignable to parameter of type 'TypedPropertyDescriptor<() => Result<number, Error | DealNotFound>> & UntaggedErrorsCannotBeMapped<Error>'.
+    Property '__untaggedErrorsCannotBeMapped' is missing in type 'TypedPropertyDescriptor<() => Result<number, Error | DealNotFound>>' but required in type 'UntaggedErrorsCannotBeMapped<Error>'.
+",
+  ],
+  [
+    "to-http-missing-key",
+    "test/diagnostics/fixtures/to-http-missing-key.ts(7,39): error TS2345: Argument of type '{ DealNotFound: number; }' is not assignable to parameter of type '{ readonly DealNotFound: HttpErrorSpec<DealNotFound>; readonly AccessDenied: HttpErrorSpec<AccessDenied>; }'.
+  Property 'AccessDenied' is missing in type '{ DealNotFound: number; }' but required in type '{ readonly DealNotFound: HttpErrorSpec<DealNotFound>; readonly AccessDenied: HttpErrorSpec<AccessDenied>; }'.
+",
+  ],
+  [
+    "to-http-stale-key",
+    "test/diagnostics/fixtures/to-http-stale-key.ts(7,39): error TS2345: Argument of type '{ DealNotFound: 404; Stale: 500; }' is not assignable to parameter of type 'ExactErrorMap<DealNotFound, { readonly DealNotFound: 404; readonly Stale: 500; }>'.
+  Property '__staleErrorMapKeys' is missing in type '{ DealNotFound: 404; Stale: 500; }' but required in type 'StaleErrorMapKeys<"Stale">'.
+",
+  ],
+  [
+    "to-http-untagged",
+    "test/diagnostics/fixtures/to-http-untagged.ts(7,41): error TS2353: Object literal may only specify known properties, and 'DealNotFound' does not exist in type 'ExactErrorMap<Error | DealNotFound, UntaggedErrorsCannotBeMapped<Error>>'.
+
+",
+  ],
+]
+`;

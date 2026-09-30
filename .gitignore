@@ -1,0 +1,9 @@
+node_modules/
+dist/
+*.tgz
+coverage/
+examples/*/node_modules/
+examples/*/dist/
+.ts-matrix/
+.claude/
+.mcp.json
