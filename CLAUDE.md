@@ -269,10 +269,10 @@ declared in a gitignored `.mcp.json`, with credentials in the gitignored
 `.claude/settings.local.json` — never inline a key into a committed file.
 
 **This project uses the personal GitHub account `mannkostir`, not the `Eatr-tech` org.** The
-remote does not exist yet. Once it does, pass `owner: mannkostir` and the repo name to GitHub MCP
-calls and never fall back to the user-scope credential. `gh`'s active account is not the repo
-owner, so never use `gh` for writes: push with plain `git` and open or merge PRs through the
-GitHub MCP.
+remote is `github.com/mannkostir/nest-result` (public). On this machine `gh`'s active account is
+`mannkostir`, so `gh` may be used for repo and PR operations here; confirm with `gh api user --jq
+.login` before any write, and stop if it prints another account. With the GitHub MCP, pass
+`owner: mannkostir`, `repo: nest-result`, and never fall back to a credential for another account.
 
 There is no live environment to inspect here. Verify claims by reading the source and running the
 compiler and tests, not by querying a service.
