@@ -9,3 +9,9 @@ export type {
   StaleErrorMapKeys,
   UntaggedErrorsCannotBeMapped,
 } from './core/error-map.js';
+export {
+  DuplicateNeverthrowError,
+  MissingErrorMapError,
+  UnmappedErrorTagError,
+  UntaggedErrorValueError,
+} from './core/library-errors.js';
