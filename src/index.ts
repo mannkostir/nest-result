@@ -16,3 +16,7 @@ export {
   UntaggedErrorValueError,
 } from './core/library-errors.js';
 export { toHttp } from './http/to-http.js';
+export { MapErrors } from './http/map-errors.decorator.js';
+export type { MapErrorsDecorator } from './http/map-errors.decorator.js';
+export { ResultInterceptor } from './http/result.interceptor.js';
+export { ResultModule } from './http/result.module.js';
