@@ -15,3 +15,4 @@ export {
   UnmappedErrorTagError,
   UntaggedErrorValueError,
 } from './core/library-errors.js';
+export { toHttp } from './http/to-http.js';
