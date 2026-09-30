@@ -20,8 +20,8 @@ type TransactionTarget = {
   readonly settings: ResultTransactionSettings<unknown>;
 };
 
-export function TransactionalResult<TAdapter = never>(): TransactionalResultDecorator;
-export function TransactionalResult<TAdapter = never>(propagation: Propagation): TransactionalResultDecorator;
+export function TransactionalResult(): TransactionalResultDecorator;
+export function TransactionalResult(propagation: Propagation): TransactionalResultDecorator;
 export function TransactionalResult<TAdapter = never>(
   options: TransactionOptionsOf<TAdapter>,
 ): TransactionalResultDecorator;

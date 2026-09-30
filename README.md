@@ -13,11 +13,26 @@ npm install nest-result neverthrow
 ## In 60 seconds
 
 ```ts
+import { Controller, Injectable, Module, Param, Post } from '@nestjs/common';
 import { TaggedError, MapErrors, ResultModule } from 'nest-result';
 import { err, ok, type Result } from 'neverthrow';
 
+export type Deal = { id: string; closed: boolean };
+
 export class DealNotFound extends TaggedError('DealNotFound')<{ dealId: string }> {}
 export class DealAlreadyClosed extends TaggedError('DealAlreadyClosed') {}
+
+@Injectable()
+export class DealsService {
+  private readonly deals = new Map<string, Deal>([['1', { id: '1', closed: false }]]);
+
+  close(id: string): Result<Deal, DealNotFound | DealAlreadyClosed> {
+    const deal = this.deals.get(id);
+    if (deal === undefined) return err(new DealNotFound({ dealId: id }));
+    if (deal.closed) return err(new DealAlreadyClosed());
+    return ok({ ...deal, closed: true });
+  }
+}
 
 @Controller('deals')
 export class DealsController {
@@ -63,7 +78,7 @@ const plain = { _tag: 'RateLimited' } as const;
 
 `TaggedError` instances are real `Error`s with a stack trace, `name` equal to the tag, and `message` defaulting to the tag. Payloads may not declare `_tag` or `name`.
 
-The error's own fields are never sent to the client unless you ask for them with a custom body.
+The default error body is `statusCode`, `code` (the tag) and `message`. No other payload field is ever sent to the client. `message` is sent as-is, so for internal failures use a fixed message or a custom `body` rather than passing through driver or exception text.
 
 ## Mapping errors
 
@@ -107,10 +122,16 @@ Same decorator, plus one `@ApiResponse` per mapped status, listing the tags that
 
 ## Transactions that roll back on Err
 
-With [`@nestjs-cls/transactional`](https://papooch.github.io/nestjs-cls/plugins/available-plugins/transactional), a transaction rolls back when the method throws. A method that returns `Err` does not throw, so its partial writes are committed. `nest-result/transactional` fixes that for every adapter (TypeORM, Prisma, Drizzle, Knex, MikroORM, Kysely):
+With [`@nestjs-cls/transactional`](https://papooch.github.io/nestjs-cls/plugins/available-plugins/transactional), a transaction rolls back when the method throws. A method that returns `Err` does not throw, so its partial writes are committed. `nest-result/transactional` fixes that. It works with any adapter, because it relies only on `@nestjs-cls/transactional`'s rollback-on-throw, and it is tested against TypeORM:
 
 ```ts
+import { Injectable } from '@nestjs/common';
+import { TransactionHost } from '@nestjs-cls/transactional';
+import { TransactionalAdapterTypeOrm } from '@nestjs-cls/transactional-adapter-typeorm';
 import { TransactionalResult } from 'nest-result/transactional';
+import { err, type Result } from 'neverthrow';
+import { DealEntity } from './deal.entity';
+import { type Deal, DealAlreadyClosed, DealNotFound } from './deals';
 
 @Injectable()
 export class DealsService {
@@ -145,6 +166,18 @@ To discard the inner work independently, use `Propagation.Nested` (a savepoint) 
 2. Add `ResultModule.forRoot()` to your root module and delete your interceptor.
 3. Add `@MapErrors({...})` to each route that returns a Result; the compiler lists every tag you still need to map.
 4. Remove `HttpException`s from your domain code; map domain errors at the controller instead.
+
+## Testing with Jest
+
+The package's implementation is ES modules. A CommonJS Jest setup, the NestJS 11 default, cannot `require` it unless Jest runs with Node's VM modules support. Start Jest through Node with the flag:
+
+```json
+{
+  "scripts": {
+    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js"
+  }
+}
+```
 
 ## Requirements
 

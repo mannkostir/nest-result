@@ -226,13 +226,13 @@ If `nestjs-cls` or the transactional plugin is not configured, the plugin's own 
 3. **Compiler-diagnostic snapshots**: fixture files containing the common mistakes are compiled with `tsc`, and the diagnostic text is snapshotted. This measures and guards the readability of the errors developers will actually see.
 4. **Integration tests** with `@nestjs/testing` and supertest on both Express and Fastify, covering `toHttp`, `MapErrors` with `ResultModule`, a missing-metadata 500, compatibility with an existing exception filter, and Swagger document output. Transaction integration tests run against in-memory SQLite through the TypeORM adapter for `@nestjs-cls/transactional`, including `Propagation.Nested` savepoint rollback and the nested recover-and-commit case from 7.3.
 
-CI matrix: NestJS 11 and 12, Node 22 and 24, neverthrow 8. Type tests and diagnostic checks run against TypeScript 5.5, 6 and 7 through the `tsc` command-line tool. The repository itself builds with TypeScript 6, because TypeScript 7 has no JavaScript compiler API and the declaration bundler and package linter depend on it.
+CI matrix: NestJS 11 and 12 and neverthrow 8; the full suite runs on Node 24. The Node 22.12.0 floor is verified by the `load` job's build and package tests, which include the CommonJS-host transactional test. Type tests and diagnostic checks run against TypeScript 5.5, 6 and 7 through the `tsc` command-line tool. The repository itself builds with TypeScript 6, because TypeScript 7 has no JavaScript compiler API and the declaration bundler and package linter depend on it.
 
 ## 9. Tooling, release and docs
 
 - TypeScript strict mode; ESM and CJS builds with tsup and an `exports` map covering the three entry points; type declarations for both formats.
 - Code style follows the author's standards, including no comments; `@ts-expect-error` in type tests is the only directive used.
-- MIT licence; changesets for versions and changelog; npm publish with provenance from GitHub Actions; releases start at `0.1.0`.
+- MIT licence; releases follow the author's `nestjs-kafka` flow: a version-bump PR (`prepare <version>`), a GitHub Release `v<version>`, and a guarded `publish.yml` that stages the package through npm trusted publishing with provenance; releases start at `0.1.0`.
 - README opens with a 60-second example: a tagged error, a service, a controller with `MapErrors`, and the compile error produced by a missing mapping. Recipes follow for Swagger, transactions, nested propagation, and migrating from a hand-rolled interceptor.
 - A runnable example application in `examples/`.
 
