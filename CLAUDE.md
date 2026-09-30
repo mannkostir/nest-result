@@ -50,10 +50,15 @@ Consequences that shape every decision here:
   runtime import of them from `src/core` or `src/http` breaks every consumer who does not install
   them.
 - **Nest 11 and Nest 12 are both supported.** Nest 12 is ESM-only, Nest 11 is CommonJS.
-  `dist/*.js` is the single ESM implementation; `dist/*.cjs` is a one-line wrapper that loads it
-  through `require(esm)`, so CommonJS and ESM hosts share one copy of every class. That is why
-  `engines.node` is `>=22.12.0`. Never let a build emit a second CommonJS implementation: two
-  copies break `instanceof` on the library's error classes and duplicate the interceptor.
+  For the `index` and `swagger` entry points, `dist/*.js` is the single ESM implementation and
+  `dist/*.cjs` is a one-line wrapper that loads it through `require(esm)`, so CommonJS and ESM
+  hosts share one copy of every class. That is why `engines.node` is `>=22.12.0`. Never let a build
+  emit a second CommonJS implementation of those two: two copies break `instanceof` on the
+  library's error classes and duplicate the interceptor. The `transactional` entry is the
+  exception: `dist/transactional.cjs` is a real CommonJS build, because `nestjs-cls` and
+  `@nestjs-cls/transactional` ship separate ESM and CJS copies and the host's
+  `ClsPluginTransactional` registration lives in the copy matching its module format. It shares
+  no class identity with `index` or `swagger`, so its second copy is harmless.
 
 ## Architecture
 

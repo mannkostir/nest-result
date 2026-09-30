@@ -56,7 +56,7 @@ The npm name `nest-result` was unregistered on 2026-09-30. It may be changed bef
 | `nest-result/swagger` | `MapErrors` that also emits `@ApiResponse` metadata | `@nestjs/swagger` |
 | `nest-result/transactional` | `withResultTransaction`, `TransactionalResult` | `nestjs-cls`, `@nestjs-cls/transactional` |
 
-Required peer dependencies: `neverthrow` ^8, `@nestjs/common` and `@nestjs/core` ^11 || ^12, `rxjs` ^7, `reflect-metadata`. Consumers need Node 22 or later and TypeScript 5.5 or later. NestJS 12 is ESM-only and NestJS 11 is CommonJS, so both module formats are shipped. `@nestjs/swagger`, `nestjs-cls` and `@nestjs-cls/transactional` are optional peers and are imported only from their own entry points.
+Required peer dependencies: `neverthrow` ^8, `@nestjs/common` and `@nestjs/core` ^11 || ^12, `rxjs` ^7, `reflect-metadata`. Consumers need Node 22 or later and TypeScript 5.5 or later. NestJS 12 is ESM-only and NestJS 11 is CommonJS, so both module formats are shipped. The `nest-result` and `nest-result/swagger` entry points have a single ESM implementation, and their CommonJS files load it through `require(esm)`, so CommonJS and ESM hosts share one copy of every class. `nest-result/transactional` ships a real CommonJS build, because `nestjs-cls` and `@nestjs-cls/transactional` have separate ESM and CJS copies and the host's plugin registration lives in the copy that matches its module format; the transactional code shares no class identity with the other entry points, so a second copy of it is harmless. `@nestjs/swagger`, `nestjs-cls` and `@nestjs-cls/transactional` are optional peers and are imported only from their own entry points.
 
 ### 3.2 Source layers
 
