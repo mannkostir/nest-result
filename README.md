@@ -4,7 +4,7 @@ Return typed errors from your NestJS handlers and let the compiler prove every o
 
 Built on [neverthrow](https://github.com/supermacro/neverthrow). Works with Express and Fastify, NestJS 11 and 12.
 
-**Status: pre-1.0 (`0.0.0`).** The public API may still change between versions.
+**Status: pre-1.0 (`0.1.0`).** The public API may still change between versions.
 
 ```bash
 npm install nest-result neverthrow

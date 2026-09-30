@@ -1,6 +1,6 @@
 {
   "name": "nest-result",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "Compiler-checked, exhaustive mapping of neverthrow Results to HTTP responses for NestJS, plus transactions that roll back on Err.",
   "keywords": [
     "nestjs",
@@ -73,7 +73,8 @@
     "test:package": "vitest run --config vitest.package.config.ts",
     "example:build": "npm run build && rm -f examples/deals-api/nest-result-*.tgz && npm pack --pack-destination examples/deals-api && cd examples/deals-api && npm install && npm install --no-save ./nest-result-*.tgz && npm run build",
     "lint:package": "publint --strict && attw --pack .",
-    "check": "npm run typecheck && npm test && npm run build && npm run test:package && npm run lint:package"
+    "check": "npm run typecheck && npm test && npm run build && npm run test:package && npm run lint:package",
+    "prepublishOnly": "npm run check"
   },
   "peerDependencies": {
     "@nestjs-cls/transactional": "^4.0.0",
@@ -129,5 +130,13 @@
     "@swc/core@1.16.13": true,
     "@scarf/scarf": false,
     "better-sqlite3@12.11.1": true
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mannkostir/nest-result.git"
+  },
+  "homepage": "https://github.com/mannkostir/nest-result#readme",
+  "bugs": {
+    "url": "https://github.com/mannkostir/nest-result/issues"
   }
 }
