@@ -21,7 +21,8 @@
   ],
   "scripts": {
     "typecheck": "tsc -p tsconfig.json",
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:diagnostics-snapshot": "vitest run --config vitest.snapshot.config.ts"
   },
   "peerDependencies": {
     "@nestjs-cls/transactional": "^4.0.0",
