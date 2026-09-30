@@ -1,7 +1,9 @@
-import { HttpException } from '@nestjs/common';
+import { Controller, Get, HttpException, type INestApplication, Param } from '@nestjs/common';
 import { err, errAsync, ok, okAsync, type Result } from 'neverthrow';
-import { describe, expect, it } from 'vitest';
-import { TaggedError, toHttp, UnmappedErrorTagError } from '../../src/index.js';
+import request from 'supertest';
+import { afterEach, describe, expect, it } from 'vitest';
+import { TaggedError, toHttp, UnmappedErrorTagError, UntaggedErrorValueError } from '../../src/index.js';
+import { createApp, platforms } from '../support/create-app.js';
 
 class DealNotFound extends TaggedError('DealNotFound')<{ dealId: string; message: string }> {}
 
@@ -53,7 +55,48 @@ describe('toHttp', () => {
     await expect(toHttp(forged, { DealNotFound: 404 })).rejects.toBeInstanceOf(UnmappedErrorTagError);
   });
 
+  it('rejects with UntaggedErrorValueError when a cast hides an untagged error', async () => {
+    const untagged = err({ reason: 'no tag' }) as unknown as Result<number, DealNotFound>;
+    await expect(toHttp(untagged, { DealNotFound: 404 })).rejects.toBeInstanceOf(UntaggedErrorValueError);
+  });
+
   it('rejects with an HttpException instance', async () => {
     await expect(toHttp(err(notFound()), { DealNotFound: 404 })).rejects.toBeInstanceOf(HttpException);
+  });
+});
+
+@Controller('deals')
+class DealsController {
+  @Get(':id')
+  find(@Param('id') id: string): Promise<{ id: string }> {
+    const result: Result<{ id: string }, DealNotFound> =
+      id === 'missing' ? err(new DealNotFound({ dealId: id, message: 'Deal not found' })) : ok({ id });
+    return toHttp(result, { DealNotFound: 404 });
+  }
+}
+
+describe.each(platforms)('toHttp in a controller on %s', (platform) => {
+  let app: INestApplication;
+
+  afterEach(async () => {
+    await app.close();
+  });
+
+  const start = async () => {
+    app = await createApp(platform, { controllers: [DealsController] });
+    return request(app.getHttpServer());
+  };
+
+  it('responds with 200 and the Ok value', async () => {
+    const response = await (await start()).get('/deals/7');
+    expect({ status: response.status, body: response.body }).toEqual({ status: 200, body: { id: '7' } });
+  });
+
+  it('responds with the mapped status and default body for an Err', async () => {
+    const response = await (await start()).get('/deals/missing');
+    expect({ status: response.status, body: response.body }).toEqual({
+      status: 404,
+      body: { statusCode: 404, code: 'DealNotFound', message: 'Deal not found' },
+    });
   });
 });

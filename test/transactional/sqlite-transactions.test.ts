@@ -87,6 +87,13 @@ class DealsController {
   async create(): Promise<Result<void, CreationRejected>> {
     return this.writer.insertThenFail('via-http');
   }
+
+  @Post('mapped-outside')
+  @MapErrors({ CreationRejected: 409 })
+  @TransactionalResult()
+  async createMappedOutside(): Promise<Result<void, CreationRejected>> {
+    return this.writer.insertThenFail('via-http');
+  }
 }
 
 @Module({})
@@ -163,6 +170,15 @@ describe('TransactionalResult with TypeORM on SQLite', () => {
   it('keeps MapErrors working when TransactionalResult is applied on top of it', async () => {
     const response = await request(app.getHttpServer()).post('/deals');
     expect({ status: response.status, code: response.body.code }).toEqual({ status: 409, code: 'CreationRejected' });
+  });
+
+  it('keeps MapErrors working and rolls back when MapErrors is applied on top of TransactionalResult', async () => {
+    const response = await request(app.getHttpServer()).post('/deals/mapped-outside');
+    expect({ status: response.status, code: response.body.code, titles: await titles() }).toEqual({
+      status: 409,
+      code: 'CreationRejected',
+      titles: [],
+    });
   });
 
   it('returns a real Promise from the decorated method', async () => {

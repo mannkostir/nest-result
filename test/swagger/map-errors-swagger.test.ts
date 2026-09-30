@@ -1,6 +1,7 @@
 import { Controller, Get, type INestApplication, Param } from '@nestjs/common';
 import { DocumentBuilder, type OpenAPIObject, SwaggerModule } from '@nestjs/swagger';
 import { errAsync, okAsync, type ResultAsync } from 'neverthrow';
+import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { MapErrors } from '../../src/swagger/index.js';
 import { createApp } from '../support/create-app.js';
@@ -37,6 +38,14 @@ describe('swagger MapErrors', () => {
     expect(responses).toMatchObject({
       '404': { description: 'DealNotFound, AccessDenied' },
       '503': { description: 'Unavailable' },
+    });
+  });
+
+  it('maps an Err to its status with the default body', async () => {
+    const response = await request(app.getHttpServer()).get('/deals/x');
+    expect({ status: response.status, body: response.body }).toEqual({
+      status: 404,
+      body: { statusCode: 404, code: 'AccessDenied', message: 'AccessDenied' },
     });
   });
 });

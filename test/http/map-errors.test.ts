@@ -1,10 +1,23 @@
-import { ClassSerializerInterceptor, Controller, Get, type INestApplication, Param, Post } from '@nestjs/common';
-import { APP_INTERCEPTOR } from '@nestjs/core';
+import {
+  type ArgumentsHost,
+  Catch,
+  ClassSerializerInterceptor,
+  Controller,
+  type ExceptionFilter,
+  Get,
+  HttpException,
+  type INestApplication,
+  Inject,
+  Injectable,
+  Param,
+  Post,
+} from '@nestjs/common';
+import { APP_FILTER, APP_INTERCEPTOR, HttpAdapterHost } from '@nestjs/core';
 import { Exclude } from 'class-transformer';
 import { err, errAsync, ok, okAsync, type Result, type ResultAsync } from 'neverthrow';
 import request from 'supertest';
 import { afterEach, describe, expect, it } from 'vitest';
-import { MapErrors, ResultModule } from '../../src/index.js';
+import { DuplicateNeverthrowError, MapErrors, MissingErrorMapError, ResultModule } from '../../src/index.js';
 import { createApp, platforms } from '../support/create-app.js';
 import { AccessDenied, DealNotFound } from '../support/errors.js';
 
@@ -61,6 +74,44 @@ class ForeignResultController {
   }
 }
 
+@Injectable()
+class ExceptionRecorder {
+  private recorded: unknown;
+
+  record(exception: unknown): void {
+    this.recorded = exception;
+  }
+
+  get last(): unknown {
+    return this.recorded;
+  }
+}
+
+@Catch()
+class RecordingFilter implements ExceptionFilter {
+  constructor(
+    @Inject(ExceptionRecorder) private readonly recorder: ExceptionRecorder,
+    @Inject(HttpAdapterHost) private readonly adapterHost: HttpAdapterHost,
+  ) {}
+
+  catch(exception: unknown, host: ArgumentsHost): void {
+    this.recorder.record(exception);
+    this.adapterHost.httpAdapter.reply(host.switchToHttp().getResponse(), { statusCode: 500 }, 500);
+  }
+}
+
+@Catch(HttpException)
+class WrappingFilter implements ExceptionFilter {
+  constructor(@Inject(HttpAdapterHost) private readonly adapterHost: HttpAdapterHost) {}
+
+  catch(exception: HttpException, host: ArgumentsHost): void {
+    const status = exception.getStatus();
+    this.adapterHost.httpAdapter.reply(host.switchToHttp().getResponse(), { wrapped: status }, status);
+  }
+}
+
+const recordingProviders = [ExceptionRecorder, { provide: APP_FILTER, useClass: RecordingFilter }];
+
 describe.each(platforms)('MapErrors on %s', (platform) => {
   let app: INestApplication;
 
@@ -106,8 +157,25 @@ describe.each(platforms)('MapErrors on %s', (platform) => {
   });
 
   it('fails with 500 when a Result is returned without MapErrors', async () => {
-    const response = await (await start()).get('/deals/unmapped');
-    expect(response.status).toBe(500);
+    app = await createApp(platform, {
+      imports: [ResultModule.forRoot()],
+      controllers: [DealsController],
+      providers: recordingProviders,
+    });
+    const response = await request(app.getHttpServer()).get('/deals/unmapped');
+    expect({ status: response.status, error: app.get(ExceptionRecorder).last }).toStrictEqual({
+      status: 500,
+      error: MissingErrorMapError.forHandler('DealsController.unmapped'),
+    });
+  });
+
+  it('lets a user HttpException filter rewrite the response of a mapped Err', async () => {
+    app = await createApp(platform, {
+      controllers: [DealsController],
+      providers: [{ provide: APP_FILTER, useClass: WrappingFilter }],
+    });
+    const response = await request(app.getHttpServer()).get('/deals/async/missing');
+    expect({ status: response.status, body: response.body }).toEqual({ status: 404, body: { wrapped: 404 } });
   });
 
   it('passes non-Result values through untouched', async () => {
@@ -118,9 +186,17 @@ describe.each(platforms)('MapErrors on %s', (platform) => {
 
 describe('ResultModule safety net', () => {
   it('fails with 500 when a Result from another neverthrow copy reaches it', async () => {
-    const app = await createApp('express', { imports: [ResultModule.forRoot()], controllers: [ForeignResultController] });
+    const app = await createApp('express', {
+      imports: [ResultModule.forRoot()],
+      controllers: [ForeignResultController],
+      providers: recordingProviders,
+    });
     const response = await request(app.getHttpServer()).get('/foreign');
+    const recorded = app.get(ExceptionRecorder).last;
     await app.close();
-    expect(response.status).toBe(500);
+    expect({ status: response.status, error: recorded }).toStrictEqual({
+      status: 500,
+      error: DuplicateNeverthrowError.forHandler('ForeignResultController.foreign'),
+    });
   });
 });
