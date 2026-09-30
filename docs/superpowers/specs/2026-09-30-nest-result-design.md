@@ -56,7 +56,7 @@ The npm name `nest-result` was unregistered on 2026-09-30. It may be changed bef
 | `nest-result/swagger` | `MapErrors` that also emits `@ApiResponse` metadata | `@nestjs/swagger` |
 | `nest-result/transactional` | `withResultTransaction`, `TransactionalResult` | `nestjs-cls`, `@nestjs-cls/transactional` |
 
-Required peer dependencies: `neverthrow` ^8, `@nestjs/common` and `@nestjs/core` ^11 || ^12, `rxjs` ^7, `reflect-metadata`. `@nestjs/swagger`, `nestjs-cls` and `@nestjs-cls/transactional` are optional peers and are imported only from their own entry points.
+Required peer dependencies: `neverthrow` ^8, `@nestjs/common` and `@nestjs/core` ^11 || ^12, `rxjs` ^7, `reflect-metadata`. Consumers need Node 22 or later and TypeScript 5.5 or later. NestJS 12 is ESM-only and NestJS 11 is CommonJS, so both module formats are shipped. `@nestjs/swagger`, `nestjs-cls` and `@nestjs-cls/transactional` are optional peers and are imported only from their own entry points.
 
 ### 3.2 Source layers
 
@@ -96,6 +96,8 @@ Guarantees:
 - a payload-less error is constructed with no arguments;
 - `message` defaults to the tag and may be set through an optional `message` field in the payload.
 
+The payload type must be an object type (type literal or interface). It may not declare `_tag` or `name`, and a declared `message` must be a string; violations are compile errors. At runtime the tag and name are assigned after the payload, so a payload smuggled in through a cast cannot overwrite them.
+
 Plain objects such as `{ _tag: 'RateLimited' as const }` are equally valid errors. The library never requires extending `TaggedError`.
 
 ### 4.2 Error maps
@@ -130,7 +132,7 @@ The default body is:
 
 The error's own fields are not included unless an explicit `body` function is supplied. When `body` is supplied, its return value is the whole response body.
 
-Runtime failures, reachable only by bypassing the types (casts, `any`), are reported as typed library errors rather than being silently mapped:
+`resolveHttpError` returns `Result<HttpErrorResponse, UnmappedErrorTagError | UntaggedErrorValueError>`. Runtime failures, reachable only by bypassing the types (casts, `any`), are returned as these typed library errors rather than being silently mapped:
 - `UnmappedErrorTagError` when the tag is not a key of the map;
 - `UntaggedErrorValueError` when the value has no string `_tag`.
 
@@ -160,11 +162,12 @@ find(@Param('id') id: string): ResultAsync<Deal, DealNotFound | AccessDenied> {
 ```
 
 - A method decorator whose typed property descriptor requires the method to return `Result<T, E>`, `ResultAsync<T, E>` or `Promise<Result<T, E>>`, with the supplied map satisfying `ErrorMap<E>` exactly.
-- Stores the map as method metadata. It performs no conversion itself.
+- Stores the map as method metadata and attaches `ResultInterceptor` to the route. A route-level interceptor is the innermost one, so the Result is converted before any global interceptor, such as a global `ClassSerializerInterceptor`, sees the response.
+- A decorator factory receives the map before it sees the method, so a custom `body` function in the decorator form must annotate its parameter type (`body: (e: DealNotFound) => ...`). The annotation is checked against the method's actual error type. `toHttp` infers the parameter type without an annotation.
 
 ### 5.3 `ResultInterceptor` and `ResultModule`
 
-`ResultModule.forRoot()` registers `ResultInterceptor` as a global interceptor through `APP_INTERCEPTOR`. The interceptor may also be applied manually with `@UseInterceptors`.
+`ResultModule.forRoot()` registers `ResultInterceptor` as a global interceptor through `APP_INTERCEPTOR`. In that position it is a safety net: routes decorated with `MapErrors` have already converted their Result at route level, so the global instance only ever sees Results from routes that lack `MapErrors`.
 
 For each handler return value:
 - a non-Result value passes through untouched;
@@ -202,7 +205,7 @@ Behaviour:
 
 ### 7.2 `TransactionalResult`
 
-A method decorator accepting the same argument forms as `@Transactional` from `@nestjs-cls/transactional`: `()`, `(propagation)`, `(options)`, `(propagation, options)` and `(connectionName, propagation?, options?)`. The method must return `Promise<Result<T, E>>` or `ResultAsync<T, E>`, which is enforced by the typed descriptor. It wraps the method body with `withResultTransaction`, locating the `TransactionHost` the same way `@Transactional` does. The exact lookup mechanism is confirmed in the spike (section 10, step 1).
+A method decorator accepting the same argument forms as `@Transactional` from `@nestjs-cls/transactional`: `()`, `(propagation)`, `(options)`, `(propagation, options)` and `(connectionName, propagation?, options?)`. The method must return `Promise<Result<T, E>>`, which is enforced by the typed descriptor, and the decorated method returns a real `Promise`. Methods written in the `ResultAsync` style use `withResultTransaction` directly, because the decorator cannot know before the method runs which of the two shapes the caller expects. It wraps the method body with `withResultTransaction`, locating the `TransactionHost` through `TransactionHost.getInstance(connectionName)`, exactly as `@Transactional` does, and copies method metadata with `copyMethodMetadata` from `nestjs-cls` so other decorators on the same method keep working.
 
 ### 7.3 Nested transactions
 
@@ -223,7 +226,7 @@ If `nestjs-cls` or the transactional plugin is not configured, the plugin's own 
 3. **Compiler-diagnostic snapshots**: fixture files containing the common mistakes are compiled with `tsc`, and the diagnostic text is snapshotted. This measures and guards the readability of the errors developers will actually see.
 4. **Integration tests** with `@nestjs/testing` and supertest on both Express and Fastify, covering `toHttp`, `MapErrors` with `ResultModule`, a missing-metadata 500, compatibility with an existing exception filter, and Swagger document output. Transaction integration tests run against in-memory SQLite through the TypeORM adapter for `@nestjs-cls/transactional`, including `Propagation.Nested` savepoint rollback and the nested recover-and-commit case from 7.3.
 
-CI matrix: NestJS 11 and 12, Node 22 and 24, the lowest supported and the latest TypeScript, neverthrow 8.
+CI matrix: NestJS 11 and 12, Node 22 and 24, neverthrow 8. Type tests and diagnostic checks run against TypeScript 5.5, 6 and 7 through the `tsc` command-line tool. The repository itself builds with TypeScript 6, because TypeScript 7 has no JavaScript compiler API and the declaration bundler and package linter depend on it.
 
 ## 9. Tooling, release and docs
 
