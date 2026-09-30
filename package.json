@@ -71,6 +71,7 @@
     "test": "vitest run",
     "test:diagnostics-snapshot": "vitest run --config vitest.snapshot.config.ts",
     "test:package": "vitest run --config vitest.package.config.ts",
+    "example:build": "npm run build && rm -f examples/deals-api/nest-result-*.tgz && npm pack --pack-destination examples/deals-api && cd examples/deals-api && npm install && npm install --no-save ./nest-result-*.tgz && npm run build",
     "lint:package": "publint --strict && attw --pack .",
     "check": "npm run typecheck && npm test && npm run build && npm run test:package && npm run lint:package"
   },
