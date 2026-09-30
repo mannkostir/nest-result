@@ -19,10 +19,60 @@
   "files": [
     "dist"
   ],
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.cts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
+    },
+    "./swagger": {
+      "import": {
+        "types": "./dist/swagger.d.ts",
+        "default": "./dist/swagger.js"
+      },
+      "require": {
+        "types": "./dist/swagger.d.cts",
+        "default": "./dist/swagger.cjs"
+      }
+    },
+    "./transactional": {
+      "import": {
+        "types": "./dist/transactional.d.ts",
+        "default": "./dist/transactional.js"
+      },
+      "require": {
+        "types": "./dist/transactional.d.cts",
+        "default": "./dist/transactional.cjs"
+      }
+    },
+    "./package.json": "./package.json"
+  },
+  "typesVersions": {
+    "*": {
+      "swagger": [
+        "./dist/swagger.d.cts"
+      ],
+      "transactional": [
+        "./dist/transactional.d.cts"
+      ]
+    }
+  },
   "scripts": {
+    "build": "tsup && node scripts/write-cjs-entry-points.js",
     "typecheck": "tsc -p tsconfig.json",
     "test": "vitest run",
-    "test:diagnostics-snapshot": "vitest run --config vitest.snapshot.config.ts"
+    "test:diagnostics-snapshot": "vitest run --config vitest.snapshot.config.ts",
+    "test:package": "vitest run --config vitest.package.config.ts",
+    "lint:package": "publint --strict && attw --pack .",
+    "check": "npm run typecheck && npm test && npm run build && npm run test:package && npm run lint:package"
   },
   "peerDependencies": {
     "@nestjs-cls/transactional": "^4.0.0",
@@ -46,6 +96,7 @@
     }
   },
   "devDependencies": {
+    "@arethetypeswrong/cli": "^0.18.5",
     "@nestjs-cls/transactional": "^4.0.1",
     "@nestjs-cls/transactional-adapter-typeorm": "^2.0.1",
     "@nestjs/common": "^12.1.2",
@@ -63,9 +114,11 @@
     "expect-type": "^1.4.0",
     "nestjs-cls": "^7.0.1",
     "neverthrow": "^8.2.0",
+    "publint": "^0.3.24",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.2",
     "supertest": "^7.3.0",
+    "tsup": "^8.5.1",
     "typeorm": "^1.1.1",
     "typescript": "~6.0.3",
     "unplugin-swc": "^2.0.0",
