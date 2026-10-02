@@ -64,6 +64,14 @@ describe('compiler diagnostics for common mistakes', () => {
     expect(diagnostics.get('error-defaults-status')).toContain('ErrorStatusOutOfRange<302>');
   });
 
+  it('names a used default missing from the Swagger uses list', () => {
+    expect(diagnostics.get('swagger-missing-uses')).toContain('MissingDefaultUses<"NotFound">');
+  });
+
+  it('names a default in the Swagger uses list that the route cannot produce', () => {
+    expect(diagnostics.get('swagger-stale-uses')).toContain('StaleDefaultUses<"Conflict">');
+  });
+
   it('reports nothing outside the fixtures', () => {
     expect(diagnostics.has('unknown')).toBe(false);
   });

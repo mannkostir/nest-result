@@ -58,6 +58,20 @@ exports[`compiler diagnostics text > matches the recorded diagnostics for every 
 ",
   ],
   [
+    "swagger-missing-uses",
+    "test/diagnostics/fixtures/swagger-missing-uses.ts(11,4): error TS1241: Unable to resolve signature of method decorator when called as an expression.
+  Argument of type 'TypedPropertyDescriptor<() => ResultAsync<number, AccessDenied | TaskNotFound>>' is not assignable to parameter of type 'TypedPropertyDescriptor<() => ResultAsync<number, AccessDenied | TaskNotFound>> & MissingDefaultUses<"NotFound">'.
+    Property '__missingDefaultUses' is missing in type 'TypedPropertyDescriptor<() => ResultAsync<number, AccessDenied | TaskNotFound>>' but required in type 'MissingDefaultUses<"NotFound">'.
+",
+  ],
+  [
+    "swagger-stale-uses",
+    "test/diagnostics/fixtures/swagger-stale-uses.ts(11,4): error TS1241: Unable to resolve signature of method decorator when called as an expression.
+  Argument of type 'TypedPropertyDescriptor<() => ResultAsync<number, AccessDenied | TaskNotFound>>' is not assignable to parameter of type 'TypedPropertyDescriptor<() => ResultAsync<number, AccessDenied | TaskNotFound>> & StaleDefaultUses<"Conflict">'.
+    Property '__staleDefaultUses' is missing in type 'TypedPropertyDescriptor<() => ResultAsync<number, AccessDenied | TaskNotFound>>' but required in type 'StaleDefaultUses<"Conflict">'.
+",
+  ],
+  [
     "to-http-ambiguous",
     "test/diagnostics/fixtures/to-http-ambiguous.ts(7,39): error TS2345: Argument of type '{ NotFound: 404; }' is not assignable to parameter of type 'ErrorMapTemplate<TaskNotFound | { readonly _tag: "NotFound"; }, { NotFound: 404; }> & NoInfer<AmbiguousErrorKeys<"NotFound">>'.
   Property '__ambiguousErrorKeys' is missing in type '{ NotFound: 404; }' but required in type 'AmbiguousErrorKeys<"NotFound">'.
