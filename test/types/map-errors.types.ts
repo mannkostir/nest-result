@@ -29,6 +29,17 @@ export class TypedController {
     return both;
   }
 
+  @MapErrors({ DealNotFound: 404, AccessDenied: 403 })
+  private privateRoute(): ResultAsync<{ id: string }, DealNotFound | AccessDenied> {
+    return both;
+  }
+
+  // @ts-expect-error
+  @MapErrors({ DealNotFound: 404 })
+  private privateMissingKey(): ResultAsync<{ id: string }, DealNotFound | AccessDenied> {
+    return both;
+  }
+
   // @ts-expect-error
   @MapErrors({ DealNotFound: 404 })
   missingKey(): ResultAsync<{ id: string }, DealNotFound | AccessDenied> {

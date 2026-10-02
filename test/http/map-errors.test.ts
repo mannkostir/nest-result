@@ -3,8 +3,10 @@ import {
   Catch,
   ClassSerializerInterceptor,
   Controller,
+  Delete,
   type ExceptionFilter,
   Get,
+  HttpCode,
   HttpException,
   type INestApplication,
   Inject,
@@ -61,6 +63,21 @@ class DealsController {
   @MapErrors({ AccessDenied: 403 })
   async act(): Promise<Result<void, AccessDenied>> {
     return ok(undefined);
+  }
+
+  @Delete(':id')
+  @HttpCode(204)
+  @MapErrors({ AccessDenied: 403 })
+  remove(): ResultAsync<void, AccessDenied> {
+    return okAsync(undefined);
+  }
+
+  @Get('private/:id')
+  @MapErrors({ DealNotFound: 404, AccessDenied: 403 })
+  private findPrivately(@Param('id') id: string): ResultAsync<DealView, DealNotFound | AccessDenied> {
+    return id === 'missing'
+      ? errAsync(new DealNotFound({ dealId: id, message: 'Deal not found' }))
+      : okAsync(new DealView(id, 'hidden'));
   }
 
   @Get('unmapped')
@@ -244,6 +261,21 @@ describe.each(platforms)('MapErrors on %s', (platform) => {
   it('passes non-Result values through untouched', async () => {
     const response = await (await start()).get('/deals/plain');
     expect(response.body).toEqual({ plain: true });
+  });
+
+  it('responds 204 with an empty body for Ok(undefined) under HttpCode(204)', async () => {
+    const response = await (await start()).delete('/deals/7');
+    expect({ status: response.status, text: response.text }).toEqual({ status: 204, text: '' });
+  });
+
+  it('maps an Err from a private handler method', async () => {
+    const response = await (await start()).get('/deals/private/missing');
+    expect(response.status).toBe(404);
+  });
+
+  it('serializes the Ok value from a private handler method', async () => {
+    const response = await (await start()).get('/deals/private/7');
+    expect(response.body).toEqual({ id: '7' });
   });
 });
 
