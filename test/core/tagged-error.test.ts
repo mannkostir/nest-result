@@ -92,4 +92,15 @@ describe('TaggedError', () => {
     const forged = new DealNotFound({ dealId: '1', stack: 'forged' } as unknown as { dealId: string });
     expect(forged.stack).not.toBe('forged');
   });
+
+  it('copies a symbol-keyed payload field onto the instance', () => {
+    const marker = Symbol('marker');
+    const error = new DealNotFound({ dealId: '1', [marker]: 'kept' } as { dealId: string });
+    expect((error as unknown as Record<symbol, string>)[marker]).toBe('kept');
+  });
+
+  it('keeps its prototype when a payload smuggles in an own __proto__ key', () => {
+    const forged = new DealNotFound(JSON.parse('{"dealId":"1","__proto__":{"forged":true}}') as { dealId: string });
+    expect(Object.getPrototypeOf(forged)).toBe(DealNotFound.prototype);
+  });
 });

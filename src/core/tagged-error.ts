@@ -24,7 +24,15 @@ export type TaggedErrorClass<Tag extends string, Family extends string = never> 
   ...args: ConstructorArgs<P>
 ) => TaggedErrorInstance<Tag, P, Family>;
 
-const reservedPayloadKeys: ReadonlySet<string> = new Set(['message', 'cause', '_tag', '_family', 'name', 'stack']);
+const reservedPayloadKeys: ReadonlySet<PropertyKey> = new Set([
+  'message',
+  'cause',
+  '_tag',
+  '_family',
+  'name',
+  'stack',
+  '__proto__',
+]);
 
 export function TaggedError<const Tag extends string, const Family extends string = never>(
   tag: Tag,
@@ -48,7 +56,11 @@ function errorOptionsOf(payload: TaggedErrorPayload): ErrorOptions | undefined {
 }
 
 function ownFieldsOf(payload: object): object {
-  return Object.fromEntries(Object.entries(payload).filter(([key]) => !reservedPayloadKeys.has(key)));
+  return Object.fromEntries(
+    Reflect.ownKeys(payload)
+      .filter((key) => !reservedPayloadKeys.has(key) && Object.prototype.propertyIsEnumerable.call(payload, key))
+      .map((key) => [key, Reflect.get(payload, key)]),
+  );
 }
 
 function familyFieldOf(family: string | undefined): object {
