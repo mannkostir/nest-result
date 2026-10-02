@@ -40,6 +40,29 @@ describe('built package', () => {
     expect(output).toBe('function,function,function,function');
   });
 
+  it('shares one unit-of-work implementation between require and import', () => {
+    const output = run([
+      '--input-type=module',
+      '-e',
+      "import { createRequire } from 'node:module'; const require = createRequire(import.meta.url); console.log(require('nest-result/unit-of-work').withResultUnitOfWork === (await import('nest-result/unit-of-work')).withResultUnitOfWork)",
+    ]);
+    expect(output).toBe('true');
+  });
+
+  it('rolls back an Err through the unit-of-work entry point in a commonjs host', () => {
+    const output = run([
+      '-e',
+      [
+        "const { err } = require('neverthrow');",
+        "const { withResultUnitOfWork } = require('nest-result/unit-of-work');",
+        'const decisions = [];',
+        'const uow = { run: async (work, options) => { const result = await work({}); decisions.push(options.commitWhen(result)); return result; } };',
+        "withResultUnitOfWork(uow, async () => err('rejected')).then((result) => console.log([result.isErr(), decisions[0]].join(',')));",
+      ].join('\n'),
+    ]);
+    expect(output).toBe('true,false');
+  });
+
   it('commits a transactional result in a commonjs host', () => {
     const output = run([
       '-e',
