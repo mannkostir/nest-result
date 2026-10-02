@@ -1,6 +1,7 @@
 import { Propagation, TransactionHost } from '@nestjs-cls/transactional';
 import { copyMethodMetadata } from 'nestjs-cls';
 import type { Result } from 'neverthrow';
+import { named } from './named.js';
 import {
   type ResultTransactionSettings,
   type TransactionOptionsOf,
@@ -49,11 +50,11 @@ function wrapInTransaction<F extends AsyncResultMethod>(original: F, target: Tra
   const wrapped = async function (this: unknown, ...args: never[]): Promise<Result<unknown, unknown>> {
     return withResultTransaction(
       TransactionHost.getInstance<unknown>(target.connectionName),
-      () => original.apply(this, args),
+      named(() => original.apply(this, args), original.name),
       target.settings,
     );
   };
-  Object.defineProperty(wrapped, 'name', { value: original.name });
+  named(wrapped, original.name);
   copyMethodMetadata(original, wrapped);
   return wrapped as unknown as F;
 }
