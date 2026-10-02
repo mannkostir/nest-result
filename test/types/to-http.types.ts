@@ -1,6 +1,6 @@
 import { expectTypeOf } from 'expect-type';
 import type { Result, ResultAsync } from 'neverthrow';
-import { errorDefaults, TaggedError, toHttp } from '../../src/index.js';
+import { errorDefaults, TaggedError, toHttp, type ErrorMap } from '../../src/index.js';
 
 class DealNotFound extends TaggedError('DealNotFound')<{ dealId: string }> {}
 class AccessDenied extends TaggedError('AccessDenied') {}
@@ -90,3 +90,13 @@ toHttp(family, {}, domainDefaults);
 
 // @ts-expect-error
 errorDefaults({ NotFound: 302 });
+
+const completeSatisfiedMap = { NotFound: 404, AccessDenied: 403 } as const satisfies ErrorMap<
+  TaskNotFound | ProjectNotFound | AccessDenied
+>;
+toHttp(family, completeSatisfiedMap);
+
+const incompleteSatisfiedMap = { NotFound: 404 } as const satisfies ErrorMap<TaskNotFound | ProjectNotFound | AccessDenied>;
+
+// @ts-expect-error
+toHttp(family, incompleteSatisfiedMap);

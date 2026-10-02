@@ -65,7 +65,7 @@ error TS1241: Unable to resolve signature of method decorator when called as an 
 
 Map a tag that can no longer happen and you get `StaleErrorMapKeys<"...">`. Return a plain `Error` and you get `UntaggedErrorsCannotBeMapped<Error>`.
 
-`toHttp` reports the same markers.
+`toHttp` reports the same markers, except that a body function with a too-narrow parameter is reported by TypeScript directly.
 
 ## Tagged errors
 
@@ -259,7 +259,15 @@ close(id: string): ResultAsync<Deal, DealNotFound | DealClosed> {
 
 - `TaggedError`: `name` lives on the prototype and `message` and `cause` are no longer enumerable, so `JSON.stringify` and spreads of an error contain only `_tag`, `_family` and payload fields. A payload `cause` is now `Error.cause`, and its declared type is not kept on the instance, so `error.cause` is `unknown`. Payloads may no longer declare `stack` or `_family`.
 - Statuses must be integers from 400 to 599. Maps typed with a wide `number` status no longer compile.
-- `ErrorMap<E>` now describes any valid map for `E`, keyed by tags or families.
+- `ErrorMap<E>` no longer requires every tag: it describes any valid map for `E`, keyed by tags or families. Annotating a reusable map with it loses exhaustiveness, so `toHttp` and `MapErrors` reject the value. Declare a reusable map with `as const satisfies ErrorMap<E>` to keep full checking at the use site:
+
+```ts
+const taskErrors = {
+  NotFound: 404,
+  AccessDenied: 403,
+} as const satisfies ErrorMap<TaskNotFound | ProjectNotFound | AccessDenied>;
+```
+- A status outside 400 to 599 that reached a map through a cast now throws `InvalidErrorStatusError` when the map is built, which for `MapErrors` is at decoration time.
 - Some compiler diagnostics changed: `toHttp` now reports the `MissingErrorMapKeys`, `StaleErrorMapKeys` and `UntaggedErrorsCannotBeMapped` markers, and `ErrorBodyParameterMismatch` names keys instead of the whole map.
 - `UnmappedErrorTagError` and `UntaggedErrorValueError` messages no longer mention HTTP.
 
