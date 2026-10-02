@@ -56,6 +56,14 @@ describe('compiler diagnostics for common mistakes', () => {
     expect(diagnostics.get('to-http-wide-status')).toContain('ErrorStatusOutOfRange<number>');
   });
 
+  it('names an error that neither the route nor the defaults map', () => {
+    expect(diagnostics.get('decorator-defaults-missing')).toContain('MissingErrorMapKeys<"AccessDenied">');
+  });
+
+  it('names a default status outside 400–599', () => {
+    expect(diagnostics.get('error-defaults-status')).toContain('ErrorStatusOutOfRange<302>');
+  });
+
   it('reports nothing outside the fixtures', () => {
     expect(diagnostics.has('unknown')).toBe(false);
   });

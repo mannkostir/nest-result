@@ -17,7 +17,15 @@ import { Exclude } from 'class-transformer';
 import { err, errAsync, ok, okAsync, type Result, type ResultAsync } from 'neverthrow';
 import request from 'supertest';
 import { afterEach, describe, expect, it } from 'vitest';
-import { DuplicateNeverthrowError, InvalidErrorStatusError, MapErrors, MissingErrorMapError, ResultModule } from '../../src/index.js';
+import {
+  DuplicateNeverthrowError,
+  errorDefaults,
+  InvalidErrorStatusError,
+  MapErrors,
+  MissingErrorMapError,
+  ResultModule,
+  TaggedError,
+} from '../../src/index.js';
 import { createApp, platforms } from '../support/create-app.js';
 import { AccessDenied, DealNotFound, ProjectArchived, ProjectNotFound, TaskNotFound } from '../support/errors.js';
 
@@ -83,6 +91,14 @@ function projectOutcome(id: string): ResultAsync<{ id: string }, ProjectError> {
   return okAsync({ id });
 }
 
+const domainDefaults = errorDefaults({
+  NotFound: 404,
+  Conflict: 409,
+  Archived: { status: 410, body: (error: { readonly _tag: string }) => ({ gone: error._tag }) },
+});
+
+const MapDomainErrors = MapErrors.withDefaults(domainDefaults);
+
 @Controller('projects')
 class ProjectsController {
   @Get('family/:id')
@@ -95,6 +111,29 @@ class ProjectsController {
   @MapErrors({ TaskNotFound: 422, NotFound: 404, ProjectArchived: 410 })
   byOverride(@Param('id') id: string): ResultAsync<{ id: string }, ProjectError> {
     return projectOutcome(id);
+  }
+
+  @Get('defaults/:id')
+  @MapDomainErrors({ ProjectArchived: 410 })
+  byDefaults(@Param('id') id: string): ResultAsync<{ id: string }, ProjectError> {
+    return projectOutcome(id);
+  }
+
+  @Get('default-override/:id')
+  @MapDomainErrors({ TaskNotFound: 422, ProjectArchived: 410 })
+  byDefaultOverride(@Param('id') id: string): ResultAsync<{ id: string }, ProjectError> {
+    return projectOutcome(id);
+  }
+}
+
+class ShelfGone extends TaggedError('ShelfGone', { family: 'Archived' }) {}
+
+@Controller('shelves')
+class ShelvesController {
+  @Get()
+  @MapDomainErrors({})
+  find(): ResultAsync<number, ShelfGone> {
+    return errAsync(new ShelfGone());
   }
 }
 
@@ -259,5 +298,44 @@ describe.each(platforms)('MapErrors with error families on %s', (platform) => {
 describe('MapErrors status validation', () => {
   it('throws InvalidErrorStatusError at decoration time for a status outside 400–599', () => {
     expect(() => MapErrors({ DealNotFound: 302 })).toThrow(InvalidErrorStatusError);
+  });
+});
+
+describe.each(platforms)('MapErrors with shared defaults on %s', (platform) => {
+  let app: INestApplication;
+
+  afterEach(async () => {
+    await app.close();
+  });
+
+  const start = async () => {
+    app = await createApp(platform, {
+      imports: [ResultModule.forRoot()],
+      controllers: [ProjectsController, ShelvesController],
+    });
+    return request(app.getHttpServer());
+  };
+
+  it('maps an error through a shared default', async () => {
+    const response = await (await start()).get('/projects/defaults/project');
+    expect({ status: response.status, body: response.body }).toEqual({
+      status: 404,
+      body: { statusCode: 404, code: 'ProjectNotFound', message: 'ProjectNotFound' },
+    });
+  });
+
+  it('keeps route keys for errors the defaults do not cover', async () => {
+    const response = await (await start()).get('/projects/defaults/archived');
+    expect(response.status).toBe(410);
+  });
+
+  it('prefers a route tag over a default family', async () => {
+    const response = await (await start()).get('/projects/default-override/task');
+    expect(response.status).toBe(422);
+  });
+
+  it('uses a default custom body as the whole body', async () => {
+    const response = await (await start()).get('/shelves');
+    expect({ status: response.status, body: response.body }).toEqual({ status: 410, body: { gone: 'ShelfGone' } });
   });
 });

@@ -10,6 +10,13 @@ exports[`compiler diagnostics text > matches the recorded diagnostics for every 
 ",
   ],
   [
+    "decorator-defaults-missing",
+    "test/diagnostics/fixtures/decorator-defaults-missing.ts(10,4): error TS1241: Unable to resolve signature of method decorator when called as an expression.
+  Argument of type 'TypedPropertyDescriptor<() => ResultAsync<number, AccessDenied | TaskNotFound>>' is not assignable to parameter of type 'TypedPropertyDescriptor<() => ResultAsync<number, AccessDenied | TaskNotFound>> & MissingErrorMapKeys<"AccessDenied">'.
+    Property '__missingErrorMapKeys' is missing in type 'TypedPropertyDescriptor<() => ResultAsync<number, AccessDenied | TaskNotFound>>' but required in type 'MissingErrorMapKeys<"AccessDenied">'.
+",
+  ],
+  [
     "decorator-missing-family",
     "test/diagnostics/fixtures/decorator-missing-family.ts(8,4): error TS1241: Unable to resolve signature of method decorator when called as an expression.
   Argument of type 'TypedPropertyDescriptor<() => ResultAsync<number, AccessDenied | TaskNotFound | ProjectNotFound>>' is not assignable to parameter of type 'TypedPropertyDescriptor<() => ResultAsync<number, AccessDenied | TaskNotFound | ProjectNotFound>> & MissingErrorMapKeys<...>'.
@@ -42,6 +49,12 @@ exports[`compiler diagnostics text > matches the recorded diagnostics for every 
     "test/diagnostics/fixtures/decorator-untagged.ts(8,4): error TS1241: Unable to resolve signature of method decorator when called as an expression.
   Argument of type 'TypedPropertyDescriptor<() => Result<number, Error | DealNotFound>>' is not assignable to parameter of type 'TypedPropertyDescriptor<() => Result<number, Error | DealNotFound>> & UntaggedErrorsCannotBeMapped<Error>'.
     Property '__untaggedErrorsCannotBeMapped' is missing in type 'TypedPropertyDescriptor<() => Result<number, Error | DealNotFound>>' but required in type 'UntaggedErrorsCannotBeMapped<Error>'.
+",
+  ],
+  [
+    "error-defaults-status",
+    "test/diagnostics/fixtures/error-defaults-status.ts(3,45): error TS2345: Argument of type '{ NotFound: 302; }' is not assignable to parameter of type '{ readonly NotFound: 302; } & ErrorStatusOutOfRange<302>'.
+  Property '__errorStatusOutOfRange' is missing in type '{ NotFound: 302; }' but required in type 'ErrorStatusOutOfRange<302>'.
 ",
   ],
   [

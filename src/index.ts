@@ -22,8 +22,10 @@ export {
   UnmappedErrorTagError,
   UntaggedErrorValueError,
 } from './core/library-errors.js';
+export { errorDefaults } from './core/error-defaults.js';
+export type { ErrorDefaults } from './core/error-defaults.js';
 export { toHttp } from './http/to-http.js';
 export { MapErrors } from './http/map-errors.decorator.js';
-export type { MapErrorsDecorator } from './http/map-errors.decorator.js';
+export type { MapErrorsDecorator, MapErrorsWithDefaults } from './http/map-errors.decorator.js';
 export { ResultInterceptor } from './http/result.interceptor.js';
 export { ResultModule } from './http/result.module.js';

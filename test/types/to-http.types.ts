@@ -1,6 +1,6 @@
 import { expectTypeOf } from 'expect-type';
 import type { Result, ResultAsync } from 'neverthrow';
-import { TaggedError, toHttp } from '../../src/index.js';
+import { errorDefaults, TaggedError, toHttp } from '../../src/index.js';
 
 class DealNotFound extends TaggedError('DealNotFound')<{ dealId: string }> {}
 class AccessDenied extends TaggedError('AccessDenied') {}
@@ -79,3 +79,14 @@ toHttp(both, { DealNotFound: { status: 302, body: () => ({}) }, AccessDenied: 40
 
 // @ts-expect-error
 toHttp(both, { DealNotFound: 'oops', AccessDenied: 403 });
+
+const domainDefaults = errorDefaults({ NotFound: 404, Conflict: 409 });
+
+expectTypeOf(toHttp(family, { AccessDenied: 403 }, domainDefaults)).toEqualTypeOf<Promise<number>>();
+toHttp(family, { NotFound: 410, AccessDenied: 403 }, domainDefaults);
+
+// @ts-expect-error
+toHttp(family, {}, domainDefaults);
+
+// @ts-expect-error
+errorDefaults({ NotFound: 302 });

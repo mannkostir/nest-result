@@ -1,5 +1,5 @@
 import type { Result, ResultAsync } from 'neverthrow';
-import { MapErrors, TaggedError } from '../../src/index.js';
+import { errorDefaults, MapErrors, TaggedError } from '../../src/index.js';
 
 class DealNotFound extends TaggedError('DealNotFound')<{ dealId: string }> {}
 class AccessDenied extends TaggedError('AccessDenied') {}
@@ -10,6 +10,8 @@ declare const untagged: Result<number, DealNotFound | Error>;
 class TaskNotFound extends TaggedError('TaskNotFound', { family: 'NotFound' })<{ taskId: string }> {}
 class ProjectNotFound extends TaggedError('ProjectNotFound', { family: 'NotFound' }) {}
 declare const family: ResultAsync<number, TaskNotFound | ProjectNotFound | AccessDenied>;
+
+const MapDomainErrors = MapErrors.withDefaults(errorDefaults({ NotFound: 404, Conflict: 409 }));
 
 export class TypedController {
   @MapErrors({ DealNotFound: 404, AccessDenied: 403 })
@@ -100,5 +102,27 @@ export class TypedController {
   @MapErrors({ DealNotFound: 600, AccessDenied: 403 })
   tooHighStatus(): ResultAsync<{ id: string }, DealNotFound | AccessDenied> {
     return both;
+  }
+
+  @MapDomainErrors({ AccessDenied: 403 })
+  withDefaults(): ResultAsync<number, TaskNotFound | ProjectNotFound | AccessDenied> {
+    return family;
+  }
+
+  @MapDomainErrors({ TaskNotFound: 422, AccessDenied: 403 })
+  withDefaultsOverride(): ResultAsync<number, TaskNotFound | ProjectNotFound | AccessDenied> {
+    return family;
+  }
+
+  // @ts-expect-error
+  @MapDomainErrors({})
+  withDefaultsMissing(): ResultAsync<number, TaskNotFound | ProjectNotFound | AccessDenied> {
+    return family;
+  }
+
+  // @ts-expect-error
+  @MapDomainErrors({ AccessDenied: 403, Stale: 500 })
+  withDefaultsStale(): ResultAsync<number, TaskNotFound | ProjectNotFound | AccessDenied> {
+    return family;
   }
 }
