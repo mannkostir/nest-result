@@ -35,3 +35,33 @@ toHttp(untagged, { DealNotFound: 404 });
 const staleMap = { DealNotFound: 404, AccessDenied: 403, Stale: 500 } as const;
 // @ts-expect-error
 toHttp(both, staleMap);
+
+class TaskNotFound extends TaggedError('TaskNotFound', { family: 'NotFound' })<{ taskId: string }> {}
+class ProjectNotFound extends TaggedError('ProjectNotFound', { family: 'NotFound' }) {}
+
+declare const family: ResultAsync<number, TaskNotFound | ProjectNotFound | AccessDenied>;
+declare const clash: Result<number, TaskNotFound | { readonly _tag: 'NotFound' }>;
+
+expectTypeOf(toHttp(family, { NotFound: 404, AccessDenied: 403 })).toEqualTypeOf<Promise<number>>();
+toHttp(family, { TaskNotFound: 410, NotFound: 404, AccessDenied: 403 });
+toHttp(family, {
+  NotFound: { status: 404, body: (error) => ({ code: error._tag }) },
+  AccessDenied: 403,
+});
+toHttp(family, {
+  TaskNotFound: { status: 404, body: (error) => ({ id: error.taskId }) },
+  ProjectNotFound: 404,
+  AccessDenied: 403,
+});
+
+// @ts-expect-error
+toHttp(family, { AccessDenied: 403 });
+
+// @ts-expect-error
+toHttp(family, { TaskNotFound: 404, ProjectNotFound: 404, NotFound: 404, AccessDenied: 403 });
+
+// @ts-expect-error
+toHttp(clash, { NotFound: 404 });
+
+// @ts-expect-error
+toHttp(family, { NotFound: { status: 404, body: (error: TaskNotFound) => ({ id: error.taskId }) }, AccessDenied: 403 });

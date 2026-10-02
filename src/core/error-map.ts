@@ -1,4 +1,6 @@
-import type { TagOf, UntaggedMember } from './tags.js';
+import type { FailWhen, FirstFailure, IdentityChecks } from './checks.js';
+import type { MissingKeys, StaleKeys } from './coverage.js';
+import type { ErrorKeyOf, MembersWithKey } from './tags.js';
 
 export type HttpErrorSpec<E> =
   | number
@@ -8,33 +10,36 @@ export type AnyHttpErrorSpec =
   | number
   | { readonly status: number; readonly body: (error: never) => object };
 
-export type AnyErrorMap = { readonly [tag: string]: AnyHttpErrorSpec };
+export type AnyErrorMap = { readonly [key: string]: AnyHttpErrorSpec };
 
-export type UntaggedErrorsCannotBeMapped<U> = { readonly __untaggedErrorsCannotBeMapped: U };
+export type ErrorMap<E> = { readonly [K in ErrorKeyOf<E>]?: HttpErrorSpec<MembersWithKey<E, K>> };
 
 export type MissingErrorMapKeys<K> = { readonly __missingErrorMapKeys: K };
 
 export type StaleErrorMapKeys<K> = { readonly __staleErrorMapKeys: K };
 
-export type ErrorBodyParameterMismatch<M> = { readonly __errorBodyParameterMismatch: M };
+export type ErrorBodyParameterMismatch<K> = { readonly __errorBodyParameterMismatch: K };
 
-export type ErrorMap<E> = [UntaggedMember<E>] extends [never]
-  ? { readonly [K in TagOf<E>]: HttpErrorSpec<Extract<E, { readonly _tag: K }>> }
-  : UntaggedErrorsCannotBeMapped<UntaggedMember<E>>;
+type BodyMismatches<E, M> = {
+  [K in keyof M]: M[K] extends { readonly body: (error: infer P) => object }
+    ? [MembersWithKey<E, K>] extends [P]
+      ? never
+      : K
+    : never;
+}[keyof M];
 
-type StaleKeys<E, M> = Exclude<keyof M, TagOf<E>>;
+export type ErrorMapCheck<E, M, D = {}> = FirstFailure<
+  [
+    ...IdentityChecks<E>,
+    FailWhen<MissingKeys<E, keyof M | keyof D>, MissingErrorMapKeys<MissingKeys<E, keyof M | keyof D>>>,
+    FailWhen<StaleKeys<E, keyof M>, StaleErrorMapKeys<StaleKeys<E, keyof M>>>,
+    FailWhen<
+      BodyMismatches<E, M> | BodyMismatches<E, D>,
+      ErrorBodyParameterMismatch<BodyMismatches<E, M> | BodyMismatches<E, D>>
+    >,
+  ]
+>;
 
-type MissingKeys<E, M> = Exclude<TagOf<E>, keyof M>;
-
-export type ExactErrorMap<E, M> = M &
-  ([StaleKeys<E, M>] extends [never] ? unknown : StaleErrorMapKeys<StaleKeys<E, M>>);
-
-export type ErrorMapCheck<E, M> = [UntaggedMember<E>] extends [never]
-  ? [MissingKeys<E, M>] extends [never]
-    ? [StaleKeys<E, M>] extends [never]
-      ? M extends ErrorMap<E>
-        ? unknown
-        : ErrorBodyParameterMismatch<M>
-      : StaleErrorMapKeys<StaleKeys<E, M>>
-    : MissingErrorMapKeys<MissingKeys<E, M>>
-  : UntaggedErrorsCannotBeMapped<UntaggedMember<E>>;
+export type ErrorMapTemplate<E, S> = {
+  readonly [K in keyof S]: S[K] | { readonly status: S[K]; readonly body: (error: MembersWithKey<E, K>) => object };
+};

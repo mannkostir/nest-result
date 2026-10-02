@@ -1,12 +1,14 @@
 import { ApiResponse } from '@nestjs/swagger';
 import type { AnyErrorMap } from '../core/error-map.js';
+import { errorMappingOf } from '../core/error-mapping.js';
 import { statusOf } from '../core/resolve-http-error.js';
 import { applyErrorMap } from '../http/apply-error-map.js';
 import type { MapErrorsDecorator } from '../http/map-errors.decorator.js';
 
 export function MapErrors<const M extends AnyErrorMap>(map: M): MapErrorsDecorator<M> {
+  const mapping = errorMappingOf(map);
   return (target, key, descriptor) => {
-    applyErrorMap(map, target, key, descriptor);
+    applyErrorMap(mapping, target, key, descriptor);
     tagsByStatus(map).forEach((tags, status) =>
       ApiResponse({ status, description: tags.join(', ') })(target, key, descriptor),
     );

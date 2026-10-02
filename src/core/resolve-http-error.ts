@@ -1,18 +1,20 @@
 import { err, ok, type Result } from 'neverthrow';
-import type { AnyErrorMap, AnyHttpErrorSpec } from './error-map.js';
+import type { AnyHttpErrorSpec } from './error-map.js';
+import { lookupByIdentity, readErrorIdentity } from './error-lookup.js';
+import type { ErrorMapping } from './error-mapping.js';
 import { UnmappedErrorTagError, UntaggedErrorValueError } from './library-errors.js';
 
 export type HttpErrorResponse = { readonly status: number; readonly body: object };
 
 export function resolveHttpError(
   error: unknown,
-  map: AnyErrorMap,
+  mapping: ErrorMapping,
 ): Result<HttpErrorResponse, UnmappedErrorTagError | UntaggedErrorValueError> {
-  const tag = readTag(error);
-  if (tag === undefined) return err(UntaggedErrorValueError.forValue(error));
-  const spec = Object.hasOwn(map, tag) ? map[tag] : undefined;
-  if (spec === undefined) return err(UnmappedErrorTagError.forTag(tag));
-  return ok(toResponse(spec, tag, error));
+  const identity = readErrorIdentity(error);
+  if (identity === undefined) return err(UntaggedErrorValueError.forValue(error));
+  const spec = lookupByIdentity(identity, [mapping.map, mapping.defaults]);
+  if (spec === undefined) return err(UnmappedErrorTagError.forTag(identity.tag));
+  return ok(toResponse(spec, identity.tag, error));
 }
 
 export function statusOf(spec: AnyHttpErrorSpec): number {
@@ -26,12 +28,6 @@ function toResponse(spec: AnyHttpErrorSpec, tag: string, error: unknown): HttpEr
 
 function defaultBody(status: number, tag: string, error: unknown): object {
   return { statusCode: status, code: tag, message: readMessage(error) ?? tag };
-}
-
-function readTag(error: unknown): string | undefined {
-  if (typeof error !== 'object' || error === null) return undefined;
-  const tag: unknown = (error as { readonly _tag?: unknown })._tag;
-  return typeof tag === 'string' ? tag : undefined;
 }
 
 function readMessage(error: unknown): string | undefined {

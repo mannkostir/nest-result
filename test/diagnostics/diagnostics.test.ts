@@ -9,7 +9,7 @@ describe('compiler diagnostics for common mistakes', () => {
   });
 
   it('names the missing tag when toHttp omits a mapping', () => {
-    expect(diagnostics.get('to-http-missing-key')).toContain("Property 'AccessDenied' is missing");
+    expect(diagnostics.get('to-http-missing-key')).toContain('MissingErrorMapKeys<"AccessDenied">');
   });
 
   it('names the stale key when toHttp maps a tag that cannot occur', () => {
@@ -34,6 +34,18 @@ describe('compiler diagnostics for common mistakes', () => {
 
   it('flags a body function annotated with the wrong error type', () => {
     expect(diagnostics.get('decorator-body-mismatch')).toContain('ErrorBodyParameterMismatch<');
+  });
+
+  it('names the missing family when MapErrors covers none of its members', () => {
+    expect(diagnostics.get('decorator-missing-family')).toContain('MissingErrorMapKeys<"NotFound">');
+  });
+
+  it('names a key that is a tag in one error and a family in another', () => {
+    expect(diagnostics.get('to-http-ambiguous')).toContain('AmbiguousErrorKeys<"NotFound">');
+  });
+
+  it('names a family key that every member overrides as stale', () => {
+    expect(diagnostics.get('to-http-shadowed-family')).toContain('StaleErrorMapKeys<"NotFound">');
   });
 
   it('reports nothing outside the fixtures', () => {

@@ -6,13 +6,13 @@ export type {
   TaggedErrorPayload,
 } from './core/tagged-error.js';
 export type { FamilyOf, Tagged, TagOf } from './core/tags.js';
+export type { AmbiguousErrorKeys, UntaggedErrorsCannotBeMapped } from './core/checks.js';
 export type {
   ErrorBodyParameterMismatch,
   ErrorMap,
   HttpErrorSpec,
   MissingErrorMapKeys,
   StaleErrorMapKeys,
-  UntaggedErrorsCannotBeMapped,
 } from './core/error-map.js';
 export {
   DuplicateNeverthrowError,

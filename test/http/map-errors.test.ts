@@ -19,7 +19,7 @@ import request from 'supertest';
 import { afterEach, describe, expect, it } from 'vitest';
 import { DuplicateNeverthrowError, MapErrors, MissingErrorMapError, ResultModule } from '../../src/index.js';
 import { createApp, platforms } from '../support/create-app.js';
-import { AccessDenied, DealNotFound } from '../support/errors.js';
+import { AccessDenied, DealNotFound, ProjectArchived, ProjectNotFound, TaskNotFound } from '../support/errors.js';
 
 class DealView {
   constructor(
@@ -71,6 +71,30 @@ class ForeignResultController {
   @Get()
   foreign(): object {
     return { isOk: () => true, isErr: () => false, value: 1 };
+  }
+}
+
+type ProjectError = ProjectNotFound | TaskNotFound | ProjectArchived;
+
+function projectOutcome(id: string): ResultAsync<{ id: string }, ProjectError> {
+  if (id === 'project') return errAsync(new ProjectNotFound());
+  if (id === 'task') return errAsync(new TaskNotFound({ taskId: id }));
+  if (id === 'archived') return errAsync(new ProjectArchived());
+  return okAsync({ id });
+}
+
+@Controller('projects')
+class ProjectsController {
+  @Get('family/:id')
+  @MapErrors({ NotFound: 404, ProjectArchived: 410 })
+  byFamily(@Param('id') id: string): ResultAsync<{ id: string }, ProjectError> {
+    return projectOutcome(id);
+  }
+
+  @Get('override/:id')
+  @MapErrors({ TaskNotFound: 422, NotFound: 404, ProjectArchived: 410 })
+  byOverride(@Param('id') id: string): ResultAsync<{ id: string }, ProjectError> {
+    return projectOutcome(id);
   }
 }
 
@@ -198,5 +222,36 @@ describe('ResultModule safety net', () => {
       status: 500,
       error: DuplicateNeverthrowError.forHandler('ForeignResultController.foreign'),
     });
+  });
+});
+
+describe.each(platforms)('MapErrors with error families on %s', (platform) => {
+  let app: INestApplication;
+
+  afterEach(async () => {
+    await app.close();
+  });
+
+  const start = async () => {
+    app = await createApp(platform, { imports: [ResultModule.forRoot()], controllers: [ProjectsController] });
+    return request(app.getHttpServer());
+  };
+
+  it('maps an error through its family key with the default body', async () => {
+    const response = await (await start()).get('/projects/family/task');
+    expect({ status: response.status, body: response.body }).toEqual({
+      status: 404,
+      body: { statusCode: 404, code: 'TaskNotFound', message: 'TaskNotFound' },
+    });
+  });
+
+  it('prefers a tag key over its family key', async () => {
+    const response = await (await start()).get('/projects/override/task');
+    expect(response.status).toBe(422);
+  });
+
+  it('maps another family member through the family key', async () => {
+    const response = await (await start()).get('/projects/override/project');
+    expect(response.status).toBe(404);
   });
 });
