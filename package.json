@@ -129,7 +129,9 @@
   "allowScripts": {
     "@swc/core@1.16.13": true,
     "@scarf/scarf": false,
-    "better-sqlite3@12.11.1": true
+    "better-sqlite3@12.11.1": true,
+    "esbuild": false,
+    "fsevents": false
   },
   "repository": {
     "type": "git",
