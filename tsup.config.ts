@@ -5,6 +5,7 @@ export default defineConfig({
     index: 'src/index.ts',
     swagger: 'src/swagger/index.ts',
     transactional: 'src/transactional/index.ts',
+    'unit-of-work': 'src/unit-of-work/index.ts',
   },
   format: ['esm', 'cjs'],
   dts: true,
