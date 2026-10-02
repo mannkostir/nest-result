@@ -78,6 +78,8 @@ const plain = { _tag: 'RateLimited' } as const;
 
 `TaggedError` instances are real `Error`s with a stack trace, `name` equal to the tag, and `message` defaulting to the tag. A payload `cause` becomes the standard `Error.cause`, and its declared type is not kept on the instance: `error.cause` is `unknown`. Payloads may not declare `_tag`, `_family`, `name` or `stack`. `JSON.stringify` of an error contains its `_tag`, its `_family` and its payload fields, nothing else.
 
+The default error body is `statusCode`, `code` (the tag) and `message`. No other payload field is ever sent to the client. `message` is sent as-is, so for internal failures use a fixed message or a custom `body` rather than passing through driver or exception text.
+
 ### Families
 
 An error may belong to one family. A map key can be a tag or a family:
@@ -90,8 +92,6 @@ class TaskNotFound extends TaggedError('TaskNotFound', { family: 'NotFound' }) {
 ```
 
 A tag key wins over its family key. Every error must still be covered by its tag or its family, so a new `NotFound` error needs no route change, while a new family fails compilation until it is mapped. A family key that every member overrides is reported as stale, and a name used as a tag by one error and a family by another is reported as `AmbiguousErrorKeys<"...">`. A plain object joins a family with `_family`: `{ _tag: 'RateLimited', _family: 'Throttled' } as const`.
-
-The default error body is `statusCode`, `code` (the tag) and `message`. No other payload field is ever sent to the client. `message` is sent as-is, so for internal failures use a fixed message or a custom `body` rather than passing through driver or exception text.
 
 ## Mapping errors
 
@@ -257,7 +257,7 @@ close(id: string): ResultAsync<Deal, DealNotFound | DealClosed> {
 
 ## Migrating from 0.1
 
-- `TaggedError`: `name` lives on the prototype and `message` and `cause` are no longer enumerable, so `JSON.stringify` and spreads of an error contain only `_tag`, `_family` and payload fields. A payload `cause` is now `Error.cause`, and its declared type is not kept on the instance. Payloads may no longer declare `stack` or `_family`.
+- `TaggedError`: `name` lives on the prototype and `message` and `cause` are no longer enumerable, so `JSON.stringify` and spreads of an error contain only `_tag`, `_family` and payload fields. A payload `cause` is now `Error.cause`, and its declared type is not kept on the instance, so `error.cause` is `unknown`. Payloads may no longer declare `stack` or `_family`.
 - Statuses must be integers from 400 to 599. Maps typed with a wide `number` status no longer compile.
 - `ErrorMap<E>` now describes any valid map for `E`, keyed by tags or families.
 - Some compiler diagnostics changed: `toHttp` now reports the `MissingErrorMapKeys`, `StaleErrorMapKeys` and `UntaggedErrorsCannotBeMapped` markers, and `ErrorBodyParameterMismatch` names keys instead of the whole map.
