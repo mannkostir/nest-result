@@ -1,6 +1,11 @@
 export { TaggedError } from './core/tagged-error.js';
-export type { TaggedErrorClass, TaggedErrorInstance, TaggedErrorPayload } from './core/tagged-error.js';
-export type { Tagged, TagOf } from './core/tags.js';
+export type {
+  TaggedErrorClass,
+  TaggedErrorInstance,
+  TaggedErrorOptions,
+  TaggedErrorPayload,
+} from './core/tagged-error.js';
+export type { FamilyOf, Tagged, TagOf } from './core/tags.js';
 export type {
   ErrorBodyParameterMismatch,
   ErrorMap,
