@@ -9,6 +9,7 @@ import type {
   MissingErrorMapKeys,
   StaleErrorMapKeys,
 } from '../../src/core/error-map.js';
+import type { ErrorStatusOutOfRange } from '../../src/core/error-status.js';
 import type { ErrorOfReturn } from '../../src/core/result-source.js';
 import type { FamilyOf, MembersWithKey, TagOf, UntaggedMember } from '../../src/core/tags.js';
 
@@ -47,6 +48,8 @@ expectTypeOf<ErrorMapCheck<Family, { Missing: 404; Denied: 403 }>>().toEqualType
 expectTypeOf<ErrorMapCheck<Family, { DealMissing: 410; Missing: 404; Denied: 403 }>>().toEqualTypeOf<unknown>();
 expectTypeOf<ErrorMapCheck<Family, { Denied: 403 }, { Missing: 404; Conflict: 409 }>>().toEqualTypeOf<unknown>();
 expectTypeOf<ErrorMapCheck<never, {}>>().toEqualTypeOf<unknown>();
+expectTypeOf<ErrorMapCheck<never, { X: 404 }>>().toEqualTypeOf<StaleErrorMapKeys<'X'>>();
+expectTypeOf<ErrorMapCheck<NotFound, { NotFound: 'oops' }>>().toEqualTypeOf<ErrorStatusOutOfRange<'oops'>>();
 expectTypeOf<ErrorMapCheck<NotFound | Denied, { NotFound: 404 }>>().toEqualTypeOf<MissingErrorMapKeys<'Denied'>>();
 expectTypeOf<ErrorMapCheck<Family, { Denied: 403 }>>().toEqualTypeOf<MissingErrorMapKeys<'Missing'>>();
 expectTypeOf<ErrorMapCheck<NotFound, { NotFound: 404; Stale: 500 }>>().toEqualTypeOf<StaleErrorMapKeys<'Stale'>>();

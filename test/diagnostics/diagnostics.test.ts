@@ -48,6 +48,14 @@ describe('compiler diagnostics for common mistakes', () => {
     expect(diagnostics.get('to-http-shadowed-family')).toContain('StaleErrorMapKeys<"NotFound">');
   });
 
+  it('names a status outside 400–599 on MapErrors', () => {
+    expect(diagnostics.get('decorator-status-out-of-range')).toContain('ErrorStatusOutOfRange<302>');
+  });
+
+  it('rejects a status the compiler cannot see', () => {
+    expect(diagnostics.get('to-http-wide-status')).toContain('ErrorStatusOutOfRange<number>');
+  });
+
   it('reports nothing outside the fixtures', () => {
     expect(diagnostics.has('unknown')).toBe(false);
   });

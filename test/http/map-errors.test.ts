@@ -17,7 +17,7 @@ import { Exclude } from 'class-transformer';
 import { err, errAsync, ok, okAsync, type Result, type ResultAsync } from 'neverthrow';
 import request from 'supertest';
 import { afterEach, describe, expect, it } from 'vitest';
-import { DuplicateNeverthrowError, MapErrors, MissingErrorMapError, ResultModule } from '../../src/index.js';
+import { DuplicateNeverthrowError, InvalidErrorStatusError, MapErrors, MissingErrorMapError, ResultModule } from '../../src/index.js';
 import { createApp, platforms } from '../support/create-app.js';
 import { AccessDenied, DealNotFound, ProjectArchived, ProjectNotFound, TaskNotFound } from '../support/errors.js';
 
@@ -253,5 +253,11 @@ describe.each(platforms)('MapErrors with error families on %s', (platform) => {
   it('maps another family member through the family key', async () => {
     const response = await (await start()).get('/projects/override/project');
     expect(response.status).toBe(404);
+  });
+});
+
+describe('MapErrors status validation', () => {
+  it('throws InvalidErrorStatusError at decoration time for a status outside 400–599', () => {
+    expect(() => MapErrors({ DealNotFound: 302 })).toThrow(InvalidErrorStatusError);
   });
 });

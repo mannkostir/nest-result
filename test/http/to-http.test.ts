@@ -2,7 +2,13 @@ import { Controller, Get, HttpException, type INestApplication, Param } from '@n
 import { err, errAsync, ok, okAsync, type Result } from 'neverthrow';
 import request from 'supertest';
 import { afterEach, describe, expect, it } from 'vitest';
-import { TaggedError, toHttp, UnmappedErrorTagError, UntaggedErrorValueError } from '../../src/index.js';
+import {
+  InvalidErrorStatusError,
+  TaggedError,
+  toHttp,
+  UnmappedErrorTagError,
+  UntaggedErrorValueError,
+} from '../../src/index.js';
 import { createApp, platforms } from '../support/create-app.js';
 
 class DealNotFound extends TaggedError('DealNotFound')<{ dealId: string; message: string }> {}
@@ -17,6 +23,11 @@ async function rejectionOf(pending: Promise<unknown>): Promise<unknown> {
 }
 
 describe('toHttp', () => {
+  it('rejects with InvalidErrorStatusError when a cast smuggles in a status outside 400–599', async () => {
+    const map = { DealNotFound: 302 } as unknown as { DealNotFound: 404 };
+    await expect(toHttp(err(notFound()), map)).rejects.toBeInstanceOf(InvalidErrorStatusError);
+  });
+
   it('resolves to the Ok value of a Result', async () => {
     await expect(toHttp(ok(1), {})).resolves.toBe(1);
   });

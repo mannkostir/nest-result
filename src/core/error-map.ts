@@ -1,10 +1,11 @@
 import type { FailWhen, FirstFailure, IdentityChecks } from './checks.js';
 import type { MissingKeys, StaleKeys } from './coverage.js';
+import type { ErrorStatus, ErrorStatusOutOfRange, OutOfRangeStatuses } from './error-status.js';
 import type { ErrorKeyOf, MembersWithKey } from './tags.js';
 
 export type HttpErrorSpec<E> =
-  | number
-  | { readonly status: number; readonly body: (error: E) => object };
+  | ErrorStatus
+  | { readonly status: ErrorStatus; readonly body: (error: E) => object };
 
 export type AnyHttpErrorSpec =
   | number
@@ -33,6 +34,7 @@ export type ErrorMapCheck<E, M, D = {}> = FirstFailure<
     ...IdentityChecks<E>,
     FailWhen<MissingKeys<E, keyof M | keyof D>, MissingErrorMapKeys<MissingKeys<E, keyof M | keyof D>>>,
     FailWhen<StaleKeys<E, keyof M>, StaleErrorMapKeys<StaleKeys<E, keyof M>>>,
+    FailWhen<OutOfRangeStatuses<M>, ErrorStatusOutOfRange<OutOfRangeStatuses<M>>>,
     FailWhen<
       BodyMismatches<E, M> | BodyMismatches<E, D>,
       ErrorBodyParameterMismatch<BodyMismatches<E, M> | BodyMismatches<E, D>>

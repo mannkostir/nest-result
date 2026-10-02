@@ -38,3 +38,17 @@ export class DuplicateNeverthrowError extends TaggedError('DuplicateNeverthrowEr
     });
   }
 }
+
+export class InvalidErrorStatusError extends TaggedError('InvalidErrorStatusError')<{
+  readonly key: string;
+  readonly status: unknown;
+  readonly message: string;
+}> {
+  static forKey(key: string, status: unknown): InvalidErrorStatusError {
+    return new InvalidErrorStatusError({
+      key,
+      status,
+      message: `Error key "${key}" maps to status ${String(status)}, but error statuses must be integers from 400 to 599`,
+    });
+  }
+}

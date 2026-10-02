@@ -89,4 +89,16 @@ export class TypedController {
   narrowFamilyBody(): ResultAsync<number, TaskNotFound | ProjectNotFound | AccessDenied> {
     return family;
   }
+
+  // @ts-expect-error
+  @MapErrors({ DealNotFound: 302, AccessDenied: 403 })
+  redirectStatus(): ResultAsync<{ id: string }, DealNotFound | AccessDenied> {
+    return both;
+  }
+
+  // @ts-expect-error
+  @MapErrors({ DealNotFound: 600, AccessDenied: 403 })
+  tooHighStatus(): ResultAsync<{ id: string }, DealNotFound | AccessDenied> {
+    return both;
+  }
 }

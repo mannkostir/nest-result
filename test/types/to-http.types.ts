@@ -65,3 +65,17 @@ toHttp(clash, { NotFound: 404 });
 
 // @ts-expect-error
 toHttp(family, { NotFound: { status: 404, body: (error: TaskNotFound) => ({ id: error.taskId }) }, AccessDenied: 403 });
+
+declare const wideStatus: number;
+
+// @ts-expect-error
+toHttp(both, { DealNotFound: 200, AccessDenied: 403 });
+
+// @ts-expect-error
+toHttp(both, { DealNotFound: wideStatus, AccessDenied: 403 });
+
+// @ts-expect-error
+toHttp(both, { DealNotFound: { status: 302, body: () => ({}) }, AccessDenied: 403 });
+
+// @ts-expect-error
+toHttp(both, { DealNotFound: 'oops', AccessDenied: 403 });

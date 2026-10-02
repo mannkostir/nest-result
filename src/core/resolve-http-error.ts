@@ -17,10 +17,6 @@ export function resolveHttpError(
   return ok(toResponse(spec, identity.tag, error));
 }
 
-export function statusOf(spec: AnyHttpErrorSpec): number {
-  return typeof spec === 'number' ? spec : spec.status;
-}
-
 function toResponse(spec: AnyHttpErrorSpec, tag: string, error: unknown): HttpErrorResponse {
   if (typeof spec === 'number') return { status: spec, body: defaultBody(spec, tag, error) };
   return { status: spec.status, body: spec.body(error as never) };

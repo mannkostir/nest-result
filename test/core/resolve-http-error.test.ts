@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { ErrorMapping } from '../../src/core/error-mapping.js';
-import { resolveHttpError, statusOf } from '../../src/core/resolve-http-error.js';
+import { resolveHttpError } from '../../src/core/resolve-http-error.js';
 import { TaggedError, UnmappedErrorTagError, UntaggedErrorValueError } from '../../src/index.js';
 
 class DealNotFound extends TaggedError('DealNotFound')<{ dealId: string; message: string }> {}
@@ -98,15 +98,5 @@ describe('resolveHttpError', () => {
       defaults: { TaskNotFound: 410, NotFound: 404 },
     });
     expect(resolved._unsafeUnwrap().status).toBe(410);
-  });
-});
-
-describe('statusOf', () => {
-  it('reads the status of a numeric spec', () => {
-    expect(statusOf(418)).toBe(418);
-  });
-
-  it('reads the status of an object spec', () => {
-    expect(statusOf({ status: 409, body: () => ({}) })).toBe(409);
   });
 });

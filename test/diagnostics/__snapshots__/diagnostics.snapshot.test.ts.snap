@@ -31,6 +31,13 @@ exports[`compiler diagnostics text > matches the recorded diagnostics for every 
 ",
   ],
   [
+    "decorator-status-out-of-range",
+    "test/diagnostics/fixtures/decorator-status-out-of-range.ts(8,4): error TS1241: Unable to resolve signature of method decorator when called as an expression.
+  Argument of type 'TypedPropertyDescriptor<() => ResultAsync<number, DealNotFound | AccessDenied>>' is not assignable to parameter of type 'TypedPropertyDescriptor<() => ResultAsync<number, DealNotFound | AccessDenied>> & ErrorStatusOutOfRange<302>'.
+    Property '__errorStatusOutOfRange' is missing in type 'TypedPropertyDescriptor<() => ResultAsync<number, DealNotFound | AccessDenied>>' but required in type 'ErrorStatusOutOfRange<302>'.
+",
+  ],
+  [
     "decorator-untagged",
     "test/diagnostics/fixtures/decorator-untagged.ts(8,4): error TS1241: Unable to resolve signature of method decorator when called as an expression.
   Argument of type 'TypedPropertyDescriptor<() => Result<number, Error | DealNotFound>>' is not assignable to parameter of type 'TypedPropertyDescriptor<() => Result<number, Error | DealNotFound>> & UntaggedErrorsCannotBeMapped<Error>'.
@@ -65,6 +72,12 @@ exports[`compiler diagnostics text > matches the recorded diagnostics for every 
     "to-http-untagged",
     "test/diagnostics/fixtures/to-http-untagged.ts(7,39): error TS2345: Argument of type '{ DealNotFound: 404; }' is not assignable to parameter of type 'ErrorMapTemplate<Error | DealNotFound, { DealNotFound: 404; }> & NoInfer<UntaggedErrorsCannotBeMapped<Error>>'.
   Property '__untaggedErrorsCannotBeMapped' is missing in type '{ DealNotFound: 404; }' but required in type 'UntaggedErrorsCannotBeMapped<Error>'.
+",
+  ],
+  [
+    "to-http-wide-status",
+    "test/diagnostics/fixtures/to-http-wide-status.ts(8,39): error TS2345: Argument of type '{ DealNotFound: number; }' is not assignable to parameter of type 'ErrorMapTemplate<DealNotFound, { DealNotFound: number; }> & NoInfer<ErrorStatusOutOfRange<number>>'.
+  Property '__errorStatusOutOfRange' is missing in type '{ DealNotFound: number; }' but required in type 'ErrorStatusOutOfRange<number>'.
 
 ",
   ],

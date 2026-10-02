@@ -1,7 +1,7 @@
 import { ApiResponse } from '@nestjs/swagger';
 import type { AnyErrorMap } from '../core/error-map.js';
 import { errorMappingOf } from '../core/error-mapping.js';
-import { statusOf } from '../core/resolve-http-error.js';
+import { statusOf } from '../core/error-status.js';
 import { applyErrorMap } from '../http/apply-error-map.js';
 import type { MapErrorsDecorator } from '../http/map-errors.decorator.js';
 
