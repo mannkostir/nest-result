@@ -5,7 +5,7 @@ export class UnmappedErrorTagError extends TaggedError('UnmappedErrorTagError')<
   readonly message: string;
 }> {
   static forTag(tag: string): UnmappedErrorTagError {
-    return new UnmappedErrorTagError({ tag, message: `No HTTP mapping exists for error tag "${tag}"` });
+    return new UnmappedErrorTagError({ tag, message: `No mapping or handler exists for error tag "${tag}"` });
   }
 }
 
@@ -14,7 +14,7 @@ export class UntaggedErrorValueError extends TaggedError('UntaggedErrorValueErro
   readonly message: string;
 }> {
   static forValue(value: unknown): UntaggedErrorValueError {
-    return new UntaggedErrorValueError({ value, message: 'An Err value without a string _tag cannot be mapped to HTTP' });
+    return new UntaggedErrorValueError({ value, message: 'An error value without a string _tag cannot be mapped or matched' });
   }
 }
 

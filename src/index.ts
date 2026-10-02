@@ -29,3 +29,5 @@ export { MapErrors } from './http/map-errors.decorator.js';
 export type { MapErrorsDecorator, MapErrorsWithDefaults } from './http/map-errors.decorator.js';
 export { ResultInterceptor } from './http/result.interceptor.js';
 export { ResultModule } from './http/result.module.js';
+export { matchError } from './core/match-error.js';
+export type { ErrorHandlers, MatchCheck, MissingErrorHandlers, StaleErrorHandlers } from './core/match-error.js';

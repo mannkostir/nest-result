@@ -58,6 +58,18 @@ exports[`compiler diagnostics text > matches the recorded diagnostics for every 
 ",
   ],
   [
+    "match-error-missing",
+    "test/diagnostics/fixtures/match-error-missing.ts(6,42): error TS2345: Argument of type '{ NotFound: () => string; }' is not assignable to parameter of type '{ NotFound: () => string; } & ErrorHandlers<AccessDenied | TaskNotFound, "NotFound"> & NoInfer<MissingErrorHandlers<"AccessDenied">>'.
+  Property '__missingErrorHandlers' is missing in type '{ NotFound: () => string; }' but required in type 'MissingErrorHandlers<"AccessDenied">'.
+",
+  ],
+  [
+    "match-error-stale",
+    "test/diagnostics/fixtures/match-error-stale.ts(6,42): error TS2345: Argument of type '{ NotFound: () => string; AccessDenied: () => string; Stale: () => string; }' is not assignable to parameter of type '{ NotFound: () => string; AccessDenied: () => string; Stale: () => string; } & ErrorHandlers<AccessDenied | TaskNotFound, "AccessDenied" | "NotFound" | "Stale"> & NoInfer<StaleErrorHandlers<...>>'.
+  Property '__staleErrorHandlers' is missing in type '{ NotFound: () => string; AccessDenied: () => string; Stale: () => string; }' but required in type 'StaleErrorHandlers<"Stale">'.
+",
+  ],
+  [
     "swagger-missing-uses",
     "test/diagnostics/fixtures/swagger-missing-uses.ts(11,4): error TS1241: Unable to resolve signature of method decorator when called as an expression.
   Argument of type 'TypedPropertyDescriptor<() => ResultAsync<number, AccessDenied | TaskNotFound>>' is not assignable to parameter of type 'TypedPropertyDescriptor<() => ResultAsync<number, AccessDenied | TaskNotFound>> & MissingDefaultUses<"NotFound">'.

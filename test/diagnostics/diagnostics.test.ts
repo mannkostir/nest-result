@@ -72,6 +72,14 @@ describe('compiler diagnostics for common mistakes', () => {
     expect(diagnostics.get('swagger-stale-uses')).toContain('StaleDefaultUses<"Conflict">');
   });
 
+  it('names the unhandled tag when matchError omits a handler', () => {
+    expect(diagnostics.get('match-error-missing')).toContain('MissingErrorHandlers<"AccessDenied">');
+  });
+
+  it('names the stale handler when matchError handles a tag that cannot occur', () => {
+    expect(diagnostics.get('match-error-stale')).toContain('StaleErrorHandlers<"Stale">');
+  });
+
   it('reports nothing outside the fixtures', () => {
     expect(diagnostics.has('unknown')).toBe(false);
   });
