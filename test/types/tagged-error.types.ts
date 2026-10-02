@@ -18,6 +18,7 @@ expectTypeOf(new TaskNotFound({ taskId: '1' })._family).toEqualTypeOf<'NotFound'
 expectTypeOf<'_family' extends keyof Unauthorized ? true : false>().toEqualTypeOf<false>();
 expectTypeOf<FamilyOf<TaskNotFound | Unauthorized>>().toEqualTypeOf<'NotFound'>();
 expectTypeOf(new Wrapped({ cause: new Error('root') })).toMatchTypeOf<Error>();
+expectTypeOf(new Wrapped({ cause: new Error('root') }).cause).toEqualTypeOf<unknown>();
 
 // @ts-expect-error
 new DealNotFound();

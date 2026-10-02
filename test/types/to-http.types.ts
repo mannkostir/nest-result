@@ -85,6 +85,20 @@ const domainDefaults = errorDefaults({ NotFound: 404, Conflict: 409 });
 expectTypeOf(toHttp(family, { AccessDenied: 403 }, domainDefaults)).toEqualTypeOf<Promise<number>>();
 toHttp(family, { NotFound: 410, AccessDenied: 403 }, domainDefaults);
 
+toHttp(
+  family,
+  {
+    AccessDenied: {
+      status: 403,
+      body: (error) => {
+        expectTypeOf(error).toEqualTypeOf<AccessDenied>();
+        return {};
+      },
+    },
+  },
+  domainDefaults,
+);
+
 // @ts-expect-error
 toHttp(family, {}, domainDefaults);
 
