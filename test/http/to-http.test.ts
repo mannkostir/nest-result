@@ -1,11 +1,19 @@
 import { Controller, Get, HttpException, type INestApplication, Param } from '@nestjs/common';
-import { err, errAsync, ok, okAsync, type Result } from 'neverthrow';
+import { err, errAsync, ok, okAsync, ResultAsync, type Result } from 'neverthrow';
 import request from 'supertest';
 import { afterEach, describe, expect, it } from 'vitest';
-import { TaggedError, toHttp, UnmappedErrorTagError, UntaggedErrorValueError } from '../../src/index.js';
+import {
+  errorDefaults,
+  InvalidErrorStatusError,
+  TaggedError,
+  toHttp,
+  UnmappedErrorTagError,
+  UntaggedErrorValueError,
+} from '../../src/index.js';
 import { createApp, platforms } from '../support/create-app.js';
 
 class DealNotFound extends TaggedError('DealNotFound')<{ dealId: string; message: string }> {}
+class TaskNotFound extends TaggedError('TaskNotFound', { family: 'NotFound' }) {}
 
 const notFound = () => new DealNotFound({ dealId: '9', message: 'Deal not found' });
 
@@ -17,6 +25,23 @@ async function rejectionOf(pending: Promise<unknown>): Promise<unknown> {
 }
 
 describe('toHttp', () => {
+  it('rejects with the status of a shared default', async () => {
+    const failed: ResultAsync<number, TaskNotFound> = errAsync(new TaskNotFound());
+    const thrown = await rejectionOf(toHttp(failed, {}, errorDefaults({ NotFound: 404 })));
+    expect((thrown as HttpException).getStatus()).toBe(404);
+  });
+
+  it('propagates a rejected ResultAsync unchanged', async () => {
+    const boom = new Error('boom');
+    const rejected = new ResultAsync<number, DealNotFound>(Promise.reject(boom));
+    await expect(toHttp(rejected, { DealNotFound: 404 })).rejects.toBe(boom);
+  });
+
+  it('rejects with InvalidErrorStatusError when a cast smuggles in a status outside 400–599', async () => {
+    const map = { DealNotFound: 302 } as unknown as { DealNotFound: 404 };
+    await expect(toHttp(err(notFound()), map)).rejects.toBeInstanceOf(InvalidErrorStatusError);
+  });
+
   it('resolves to the Ok value of a Result', async () => {
     await expect(toHttp(ok(1), {})).resolves.toBe(1);
   });

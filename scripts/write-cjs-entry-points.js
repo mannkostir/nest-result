@@ -2,7 +2,7 @@ import { readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 const dist = join(import.meta.dirname, '..', 'dist');
-const wrappedEntryPoints = ['index', 'swagger'];
+const wrappedEntryPoints = ['index', 'swagger', 'unit-of-work'];
 const compiledCommonJsEntryPoint = 'transactional.cjs';
 const localRequire = /require\('\.\/([^']+\.cjs)'\)/g;
 const isCompiledCommonJs = (file) => file.endsWith('.cjs') || file.endsWith('.cjs.map');

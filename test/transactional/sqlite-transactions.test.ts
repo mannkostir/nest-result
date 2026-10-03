@@ -47,6 +47,11 @@ class DealWriter {
     throw new Error('boom');
   }
 
+  @TransactionalResult(Propagation.Mandatory)
+  async closeOutsideTransaction(): Promise<Result<void, CreationRejected>> {
+    return ok(undefined);
+  }
+
   @TransactionalResult(Propagation.Nested)
   async insertInSavepointThenFail(title: string): Promise<Result<void, CreationRejected>> {
     await this.insert(title);
@@ -136,6 +141,10 @@ describe('TransactionalResult with TypeORM on SQLite', () => {
 
   const titles = async () =>
     (await dataSource.getRepository(DealSchema).find({ order: { id: 'ASC' } })).map((row) => row.title);
+
+  it('names the decorated method in upstream propagation errors', async () => {
+    await expect(app.get(DealWriter).closeOutsideTransaction()).rejects.toThrow('for method closeOutsideTransaction');
+  });
 
   it('commits when the method returns Ok', async () => {
     await app.get(DealWriter).insertThenSucceed('kept');

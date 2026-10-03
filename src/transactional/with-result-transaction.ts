@@ -1,5 +1,6 @@
 import type { Propagation, TransactionHost } from '@nestjs-cls/transactional';
 import { ResultAsync, type Result } from 'neverthrow';
+import { named } from './named.js';
 import { RollbackSignal } from './rollback-signal.js';
 
 export type TransactionOptionsOf<TAdapter> = Parameters<TransactionHost<TAdapter>['withTransaction']>[1];
@@ -24,11 +25,15 @@ async function runRollingBackOnErr<T, E, TAdapter>(
 ): Promise<Result<T, E>> {
   const owner = Symbol('nest-result transaction');
   try {
-    return await startTransaction(txHost, settings, async () => {
-      const result = await fn();
-      if (result.isErr()) throw new RollbackSignal(owner, result);
-      return result;
-    });
+    return await startTransaction(
+      txHost,
+      settings,
+      named(async () => {
+        const result = await fn();
+        if (result.isErr()) throw new RollbackSignal(owner, result);
+        return result;
+      }, fn.name),
+    );
   } catch (thrown) {
     if (RollbackSignal.isOwnedBy<T, E>(thrown, owner)) return thrown.result;
     throw thrown;

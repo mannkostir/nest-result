@@ -9,7 +9,7 @@ describe('compiler diagnostics for common mistakes', () => {
   });
 
   it('names the missing tag when toHttp omits a mapping', () => {
-    expect(diagnostics.get('to-http-missing-key')).toContain("Property 'AccessDenied' is missing");
+    expect(diagnostics.get('to-http-missing-key')).toContain('MissingErrorMapKeys<"AccessDenied">');
   });
 
   it('names the stale key when toHttp maps a tag that cannot occur', () => {
@@ -34,6 +34,50 @@ describe('compiler diagnostics for common mistakes', () => {
 
   it('flags a body function annotated with the wrong error type', () => {
     expect(diagnostics.get('decorator-body-mismatch')).toContain('ErrorBodyParameterMismatch<');
+  });
+
+  it('names the missing family when MapErrors covers none of its members', () => {
+    expect(diagnostics.get('decorator-missing-family')).toContain('MissingErrorMapKeys<"NotFound">');
+  });
+
+  it('names a key that is a tag in one error and a family in another', () => {
+    expect(diagnostics.get('to-http-ambiguous')).toContain('AmbiguousErrorKeys<"NotFound">');
+  });
+
+  it('names a family key that every member overrides as stale', () => {
+    expect(diagnostics.get('to-http-shadowed-family')).toContain('StaleErrorMapKeys<"NotFound">');
+  });
+
+  it('names a status outside 400–599 on MapErrors', () => {
+    expect(diagnostics.get('decorator-status-out-of-range')).toContain('ErrorStatusOutOfRange<302>');
+  });
+
+  it('rejects a status the compiler cannot see', () => {
+    expect(diagnostics.get('to-http-wide-status')).toContain('ErrorStatusOutOfRange<number>');
+  });
+
+  it('names an error that neither the route nor the defaults map', () => {
+    expect(diagnostics.get('decorator-defaults-missing')).toContain('MissingErrorMapKeys<"AccessDenied">');
+  });
+
+  it('names a default status outside 400–599', () => {
+    expect(diagnostics.get('error-defaults-status')).toContain('ErrorStatusOutOfRange<302>');
+  });
+
+  it('names a used default missing from the Swagger uses list', () => {
+    expect(diagnostics.get('swagger-missing-uses')).toContain('MissingDefaultUses<"NotFound">');
+  });
+
+  it('names a default in the Swagger uses list that the route cannot produce', () => {
+    expect(diagnostics.get('swagger-stale-uses')).toContain('StaleDefaultUses<"Conflict">');
+  });
+
+  it('names the unhandled tag when matchError omits a handler', () => {
+    expect(diagnostics.get('match-error-missing')).toContain('MissingErrorHandlers<"AccessDenied">');
+  });
+
+  it('names the stale handler when matchError handles a tag that cannot occur', () => {
+    expect(diagnostics.get('match-error-stale')).toContain('StaleErrorHandlers<"Stale">');
   });
 
   it('reports nothing outside the fixtures', () => {

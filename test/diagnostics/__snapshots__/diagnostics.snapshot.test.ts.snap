@@ -5,8 +5,22 @@ exports[`compiler diagnostics text > matches the recorded diagnostics for every 
   [
     "decorator-body-mismatch",
     "test/diagnostics/fixtures/decorator-body-mismatch.ts(8,4): error TS1241: Unable to resolve signature of method decorator when called as an expression.
-  Argument of type 'TypedPropertyDescriptor<() => ResultAsync<number, DealNotFound | AccessDenied>>' is not assignable to parameter of type 'TypedPropertyDescriptor<() => ResultAsync<number, DealNotFound | AccessDenied>> & ErrorBodyParameterMismatch<{ readonly DealNotFound: { ...; }; readonly AccessDenied: 403; }>'.
-    Property '__errorBodyParameterMismatch' is missing in type 'TypedPropertyDescriptor<() => ResultAsync<number, DealNotFound | AccessDenied>>' but required in type 'ErrorBodyParameterMismatch<{ readonly DealNotFound: { readonly status: 404; readonly body: (error: AccessDenied) => { tag: "AccessDenied"; }; }; readonly AccessDenied: 403; }>'.
+  Argument of type 'TypedPropertyDescriptor<() => ResultAsync<number, DealNotFound | AccessDenied>>' is not assignable to parameter of type 'TypedPropertyDescriptor<() => ResultAsync<number, DealNotFound | AccessDenied>> & ErrorBodyParameterMismatch<"DealNotFound">'.
+    Property '__errorBodyParameterMismatch' is missing in type 'TypedPropertyDescriptor<() => ResultAsync<number, DealNotFound | AccessDenied>>' but required in type 'ErrorBodyParameterMismatch<"DealNotFound">'.
+",
+  ],
+  [
+    "decorator-defaults-missing",
+    "test/diagnostics/fixtures/decorator-defaults-missing.ts(10,4): error TS1241: Unable to resolve signature of method decorator when called as an expression.
+  Argument of type 'TypedPropertyDescriptor<() => ResultAsync<number, AccessDenied | TaskNotFound>>' is not assignable to parameter of type 'TypedPropertyDescriptor<() => ResultAsync<number, AccessDenied | TaskNotFound>> & MissingErrorMapKeys<"AccessDenied">'.
+    Property '__missingErrorMapKeys' is missing in type 'TypedPropertyDescriptor<() => ResultAsync<number, AccessDenied | TaskNotFound>>' but required in type 'MissingErrorMapKeys<"AccessDenied">'.
+",
+  ],
+  [
+    "decorator-missing-family",
+    "test/diagnostics/fixtures/decorator-missing-family.ts(8,4): error TS1241: Unable to resolve signature of method decorator when called as an expression.
+  Argument of type 'TypedPropertyDescriptor<() => ResultAsync<number, AccessDenied | TaskNotFound | ProjectNotFound>>' is not assignable to parameter of type 'TypedPropertyDescriptor<() => ResultAsync<number, AccessDenied | TaskNotFound | ProjectNotFound>> & MissingErrorMapKeys<...>'.
+    Property '__missingErrorMapKeys' is missing in type 'TypedPropertyDescriptor<() => ResultAsync<number, AccessDenied | TaskNotFound | ProjectNotFound>>' but required in type 'MissingErrorMapKeys<"NotFound">'.
 ",
   ],
   [
@@ -24,6 +38,13 @@ exports[`compiler diagnostics text > matches the recorded diagnostics for every 
 ",
   ],
   [
+    "decorator-status-out-of-range",
+    "test/diagnostics/fixtures/decorator-status-out-of-range.ts(8,4): error TS1241: Unable to resolve signature of method decorator when called as an expression.
+  Argument of type 'TypedPropertyDescriptor<() => ResultAsync<number, DealNotFound | AccessDenied>>' is not assignable to parameter of type 'TypedPropertyDescriptor<() => ResultAsync<number, DealNotFound | AccessDenied>> & ErrorStatusOutOfRange<302>'.
+    Property '__errorStatusOutOfRange' is missing in type 'TypedPropertyDescriptor<() => ResultAsync<number, DealNotFound | AccessDenied>>' but required in type 'ErrorStatusOutOfRange<302>'.
+",
+  ],
+  [
     "decorator-untagged",
     "test/diagnostics/fixtures/decorator-untagged.ts(8,4): error TS1241: Unable to resolve signature of method decorator when called as an expression.
   Argument of type 'TypedPropertyDescriptor<() => Result<number, Error | DealNotFound>>' is not assignable to parameter of type 'TypedPropertyDescriptor<() => Result<number, Error | DealNotFound>> & UntaggedErrorsCannotBeMapped<Error>'.
@@ -31,20 +52,71 @@ exports[`compiler diagnostics text > matches the recorded diagnostics for every 
 ",
   ],
   [
+    "error-defaults-status",
+    "test/diagnostics/fixtures/error-defaults-status.ts(3,45): error TS2345: Argument of type '{ NotFound: 302; }' is not assignable to parameter of type '{ readonly NotFound: 302; } & ErrorStatusOutOfRange<302>'.
+  Property '__errorStatusOutOfRange' is missing in type '{ NotFound: 302; }' but required in type 'ErrorStatusOutOfRange<302>'.
+",
+  ],
+  [
+    "match-error-missing",
+    "test/diagnostics/fixtures/match-error-missing.ts(6,42): error TS2345: Argument of type '{ NotFound: () => string; }' is not assignable to parameter of type '{ NotFound: () => string; } & ErrorHandlers<AccessDenied | TaskNotFound, "NotFound"> & NoInfer<MissingErrorHandlers<"AccessDenied">>'.
+  Property '__missingErrorHandlers' is missing in type '{ NotFound: () => string; }' but required in type 'MissingErrorHandlers<"AccessDenied">'.
+",
+  ],
+  [
+    "match-error-stale",
+    "test/diagnostics/fixtures/match-error-stale.ts(6,42): error TS2345: Argument of type '{ NotFound: () => string; AccessDenied: () => string; Stale: () => string; }' is not assignable to parameter of type '{ NotFound: () => string; AccessDenied: () => string; Stale: () => string; } & ErrorHandlers<AccessDenied | TaskNotFound, "AccessDenied" | "NotFound" | "Stale"> & NoInfer<StaleErrorHandlers<...>>'.
+  Property '__staleErrorHandlers' is missing in type '{ NotFound: () => string; AccessDenied: () => string; Stale: () => string; }' but required in type 'StaleErrorHandlers<"Stale">'.
+",
+  ],
+  [
+    "swagger-missing-uses",
+    "test/diagnostics/fixtures/swagger-missing-uses.ts(11,4): error TS1241: Unable to resolve signature of method decorator when called as an expression.
+  Argument of type 'TypedPropertyDescriptor<() => ResultAsync<number, AccessDenied | TaskNotFound>>' is not assignable to parameter of type 'TypedPropertyDescriptor<() => ResultAsync<number, AccessDenied | TaskNotFound>> & MissingDefaultUses<"NotFound">'.
+    Property '__missingDefaultUses' is missing in type 'TypedPropertyDescriptor<() => ResultAsync<number, AccessDenied | TaskNotFound>>' but required in type 'MissingDefaultUses<"NotFound">'.
+",
+  ],
+  [
+    "swagger-stale-uses",
+    "test/diagnostics/fixtures/swagger-stale-uses.ts(11,4): error TS1241: Unable to resolve signature of method decorator when called as an expression.
+  Argument of type 'TypedPropertyDescriptor<() => ResultAsync<number, AccessDenied | TaskNotFound>>' is not assignable to parameter of type 'TypedPropertyDescriptor<() => ResultAsync<number, AccessDenied | TaskNotFound>> & StaleDefaultUses<"Conflict">'.
+    Property '__staleDefaultUses' is missing in type 'TypedPropertyDescriptor<() => ResultAsync<number, AccessDenied | TaskNotFound>>' but required in type 'StaleDefaultUses<"Conflict">'.
+",
+  ],
+  [
+    "to-http-ambiguous",
+    "test/diagnostics/fixtures/to-http-ambiguous.ts(7,39): error TS2345: Argument of type '{ NotFound: 404; }' is not assignable to parameter of type 'ErrorMapTemplate<TaskNotFound | { readonly _tag: "NotFound"; }, { NotFound: 404; }> & NoInfer<AmbiguousErrorKeys<"NotFound">>'.
+  Property '__ambiguousErrorKeys' is missing in type '{ NotFound: 404; }' but required in type 'AmbiguousErrorKeys<"NotFound">'.
+",
+  ],
+  [
     "to-http-missing-key",
-    "test/diagnostics/fixtures/to-http-missing-key.ts(7,39): error TS2345: Argument of type '{ DealNotFound: number; }' is not assignable to parameter of type '{ readonly DealNotFound: HttpErrorSpec<DealNotFound>; readonly AccessDenied: HttpErrorSpec<AccessDenied>; }'.
-  Property 'AccessDenied' is missing in type '{ DealNotFound: number; }' but required in type '{ readonly DealNotFound: HttpErrorSpec<DealNotFound>; readonly AccessDenied: HttpErrorSpec<AccessDenied>; }'.
+    "test/diagnostics/fixtures/to-http-missing-key.ts(7,39): error TS2345: Argument of type '{ DealNotFound: 404; }' is not assignable to parameter of type 'ErrorMapTemplate<DealNotFound | AccessDenied, { DealNotFound: 404; }> & NoInfer<MissingErrorMapKeys<"AccessDenied">>'.
+  Property '__missingErrorMapKeys' is missing in type '{ DealNotFound: 404; }' but required in type 'MissingErrorMapKeys<"AccessDenied">'.
+",
+  ],
+  [
+    "to-http-shadowed-family",
+    "test/diagnostics/fixtures/to-http-shadowed-family.ts(7,39): error TS2345: Argument of type '{ TaskNotFound: 404; NotFound: 404; }' is not assignable to parameter of type 'ErrorMapTemplate<TaskNotFound, { TaskNotFound: 404; NotFound: 404; }> & NoInfer<StaleErrorMapKeys<"NotFound">>'.
+  Property '__staleErrorMapKeys' is missing in type '{ TaskNotFound: 404; NotFound: 404; }' but required in type 'StaleErrorMapKeys<"NotFound">'.
 ",
   ],
   [
     "to-http-stale-key",
-    "test/diagnostics/fixtures/to-http-stale-key.ts(7,39): error TS2345: Argument of type '{ DealNotFound: 404; Stale: 500; }' is not assignable to parameter of type 'ExactErrorMap<DealNotFound, { readonly DealNotFound: 404; readonly Stale: 500; }>'.
+    "test/diagnostics/fixtures/to-http-stale-key.ts(7,39): error TS2345: Argument of type '{ DealNotFound: 404; Stale: 500; }' is not assignable to parameter of type 'ErrorMapTemplate<DealNotFound, { DealNotFound: 404; Stale: 500; }> & NoInfer<StaleErrorMapKeys<"Stale">>'.
   Property '__staleErrorMapKeys' is missing in type '{ DealNotFound: 404; Stale: 500; }' but required in type 'StaleErrorMapKeys<"Stale">'.
 ",
   ],
   [
     "to-http-untagged",
-    "test/diagnostics/fixtures/to-http-untagged.ts(7,41): error TS2353: Object literal may only specify known properties, and 'DealNotFound' does not exist in type 'ExactErrorMap<Error | DealNotFound, UntaggedErrorsCannotBeMapped<Error>>'.
+    "test/diagnostics/fixtures/to-http-untagged.ts(7,39): error TS2345: Argument of type '{ DealNotFound: 404; }' is not assignable to parameter of type 'ErrorMapTemplate<Error | DealNotFound, { DealNotFound: 404; }> & NoInfer<UntaggedErrorsCannotBeMapped<Error>>'.
+  Property '__untaggedErrorsCannotBeMapped' is missing in type '{ DealNotFound: 404; }' but required in type 'UntaggedErrorsCannotBeMapped<Error>'.
+",
+  ],
+  [
+    "to-http-wide-status",
+    "test/diagnostics/fixtures/to-http-wide-status.ts(8,39): error TS2345: Argument of type '{ DealNotFound: number; }' is not assignable to parameter of type 'ErrorMapTemplate<DealNotFound, { DealNotFound: number; }> & NoInfer<ErrorStatusOutOfRange<number>>'.
+  Property '__errorStatusOutOfRange' is missing in type '{ DealNotFound: number; }' but required in type 'ErrorStatusOutOfRange<number>'.
 
 ",
   ],

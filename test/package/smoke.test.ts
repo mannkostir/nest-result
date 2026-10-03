@@ -6,22 +6,22 @@ function run(args: readonly string[]): string {
 }
 
 describe('built package', () => {
-  it('shares one index implementation between require and import', () => {
+  it('shares one MapErrors between require and import', () => {
     const output = run([
       '--input-type=module',
       '-e',
-      "import { createRequire } from 'node:module'; const require = createRequire(import.meta.url); const required = [require('nest-result').MapErrors, require('nest-result').UnmappedErrorTagError]; const imported = [(await import('nest-result')).MapErrors, (await import('nest-result')).UnmappedErrorTagError]; console.log(required.every((value, index) => value === imported[index]))",
+      "import { createRequire } from 'node:module'; const require = createRequire(import.meta.url); console.log(require('nest-result').MapErrors === (await import('nest-result')).MapErrors)",
     ]);
     expect(output).toBe('true');
   });
 
-  it('loads the transactional entry point through require and import', () => {
+  it('shares one UnmappedErrorTagError between require and import', () => {
     const output = run([
       '--input-type=module',
       '-e',
-      "import { createRequire } from 'node:module'; const require = createRequire(import.meta.url); console.log([typeof require('nest-result/transactional').TransactionalResult, typeof (await import('nest-result/transactional')).TransactionalResult].join(','))",
+      "import { createRequire } from 'node:module'; const require = createRequire(import.meta.url); console.log(require('nest-result').UnmappedErrorTagError === (await import('nest-result')).UnmappedErrorTagError)",
     ]);
-    expect(output).toBe('function,function');
+    expect(output).toBe('true');
   });
 
   it('refuses deep imports into dist', () => {
@@ -32,12 +32,37 @@ describe('built package', () => {
     expect(output).toBe('ERR_PACKAGE_PATH_NOT_EXPORTED');
   });
 
-  it('loads every entry point through require', () => {
+  it.each([
+    ['nest-result', 'MapErrors'],
+    ['nest-result/swagger', 'MapErrors'],
+    ['nest-result/transactional', 'TransactionalResult'],
+    ['nest-result/unit-of-work', 'withResultUnitOfWork'],
+  ])('loads %s through require', (entry, name) => {
+    const output = run(['-e', `console.log(typeof require('${entry}').${name})`]);
+    expect(output).toBe('function');
+  });
+
+  it('shares one unit-of-work implementation between require and import', () => {
+    const output = run([
+      '--input-type=module',
+      '-e',
+      "import { createRequire } from 'node:module'; const require = createRequire(import.meta.url); console.log(require('nest-result/unit-of-work').withResultUnitOfWork === (await import('nest-result/unit-of-work')).withResultUnitOfWork)",
+    ]);
+    expect(output).toBe('true');
+  });
+
+  it('rolls back an Err through the unit-of-work entry point in a commonjs host', () => {
     const output = run([
       '-e',
-      "const core = require('nest-result'); const swagger = require('nest-result/swagger'); const tx = require('nest-result/transactional'); console.log([typeof core.MapErrors, typeof core.TaggedError, typeof swagger.MapErrors, typeof tx.TransactionalResult].join(','))",
+      [
+        "const { err } = require('neverthrow');",
+        "const { withResultUnitOfWork } = require('nest-result/unit-of-work');",
+        'const decisions = [];',
+        'const uow = { run: async (work, options) => { const result = await work({}); decisions.push(options.commitWhen(result)); return result; } };',
+        "withResultUnitOfWork(uow, async () => err('rejected')).then((result) => console.log([result.isErr(), decisions[0]].join(',')));",
+      ].join('\n'),
     ]);
-    expect(output).toBe('function,function,function,function');
+    expect(output).toBe('true,false');
   });
 
   it('commits a transactional result in a commonjs host', () => {
@@ -68,12 +93,13 @@ describe('built package', () => {
     expect(output).toBe('true');
   });
 
-  it('loads every entry point through import', () => {
-    const output = run([
-      '--input-type=module',
-      '-e',
-      "const core = await import('nest-result'); const swagger = await import('nest-result/swagger'); const tx = await import('nest-result/transactional'); console.log([typeof core.ResultModule, typeof core.toHttp, typeof swagger.MapErrors, typeof tx.withResultTransaction].join(','))",
-    ]);
-    expect(output).toBe('function,function,function,function');
+  it.each([
+    ['nest-result', 'toHttp'],
+    ['nest-result/swagger', 'MapErrors'],
+    ['nest-result/transactional', 'withResultTransaction'],
+    ['nest-result/unit-of-work', 'withResultUnitOfWork'],
+  ])('loads %s through import', (entry, name) => {
+    const output = run(['--input-type=module', '-e', `console.log(typeof (await import('${entry}')).${name})`]);
+    expect(output).toBe('function');
   });
 });

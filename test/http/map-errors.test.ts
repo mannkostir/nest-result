@@ -3,8 +3,10 @@ import {
   Catch,
   ClassSerializerInterceptor,
   Controller,
+  Delete,
   type ExceptionFilter,
   Get,
+  HttpCode,
   HttpException,
   type INestApplication,
   Inject,
@@ -17,9 +19,17 @@ import { Exclude } from 'class-transformer';
 import { err, errAsync, ok, okAsync, type Result, type ResultAsync } from 'neverthrow';
 import request from 'supertest';
 import { afterEach, describe, expect, it } from 'vitest';
-import { DuplicateNeverthrowError, MapErrors, MissingErrorMapError, ResultModule } from '../../src/index.js';
+import {
+  DuplicateNeverthrowError,
+  errorDefaults,
+  InvalidErrorStatusError,
+  MapErrors,
+  MissingErrorMapError,
+  ResultModule,
+  TaggedError,
+} from '../../src/index.js';
 import { createApp, platforms } from '../support/create-app.js';
-import { AccessDenied, DealNotFound } from '../support/errors.js';
+import { AccessDenied, DealNotFound, ProjectArchived, ProjectNotFound, TaskNotFound } from '../support/errors.js';
 
 class DealView {
   constructor(
@@ -55,6 +65,21 @@ class DealsController {
     return ok(undefined);
   }
 
+  @Delete(':id')
+  @HttpCode(204)
+  @MapErrors({ AccessDenied: 403 })
+  remove(): ResultAsync<void, AccessDenied> {
+    return okAsync(undefined);
+  }
+
+  @Get('private/:id')
+  @MapErrors({ DealNotFound: 404, AccessDenied: 403 })
+  private findPrivately(@Param('id') id: string): ResultAsync<DealView, DealNotFound | AccessDenied> {
+    return id === 'missing'
+      ? errAsync(new DealNotFound({ dealId: id, message: 'Deal not found' }))
+      : okAsync(new DealView(id, 'hidden'));
+  }
+
   @Get('unmapped')
   unmapped(): Result<number, AccessDenied> {
     return ok(1);
@@ -71,6 +96,61 @@ class ForeignResultController {
   @Get()
   foreign(): object {
     return { isOk: () => true, isErr: () => false, value: 1 };
+  }
+}
+
+type ProjectError = ProjectNotFound | TaskNotFound | ProjectArchived;
+
+function projectOutcome(id: string): ResultAsync<{ id: string }, ProjectError> {
+  if (id === 'project') return errAsync(new ProjectNotFound());
+  if (id === 'task') return errAsync(new TaskNotFound({ taskId: id }));
+  if (id === 'archived') return errAsync(new ProjectArchived());
+  return okAsync({ id });
+}
+
+const domainDefaults = errorDefaults({
+  NotFound: 404,
+  Conflict: 409,
+  Archived: { status: 410, body: (error: { readonly _tag: string }) => ({ gone: error._tag }) },
+});
+
+const MapDomainErrors = MapErrors.withDefaults(domainDefaults);
+
+@Controller('projects')
+class ProjectsController {
+  @Get('family/:id')
+  @MapErrors({ NotFound: 404, ProjectArchived: 410 })
+  byFamily(@Param('id') id: string): ResultAsync<{ id: string }, ProjectError> {
+    return projectOutcome(id);
+  }
+
+  @Get('override/:id')
+  @MapErrors({ TaskNotFound: 422, NotFound: 404, ProjectArchived: 410 })
+  byOverride(@Param('id') id: string): ResultAsync<{ id: string }, ProjectError> {
+    return projectOutcome(id);
+  }
+
+  @Get('defaults/:id')
+  @MapDomainErrors({ ProjectArchived: 410 })
+  byDefaults(@Param('id') id: string): ResultAsync<{ id: string }, ProjectError> {
+    return projectOutcome(id);
+  }
+
+  @Get('default-override/:id')
+  @MapDomainErrors({ TaskNotFound: 422, ProjectArchived: 410 })
+  byDefaultOverride(@Param('id') id: string): ResultAsync<{ id: string }, ProjectError> {
+    return projectOutcome(id);
+  }
+}
+
+class ShelfGone extends TaggedError('ShelfGone', { family: 'Archived' }) {}
+
+@Controller('shelves')
+class ShelvesController {
+  @Get()
+  @MapDomainErrors({})
+  find(): ResultAsync<number, ShelfGone> {
+    return errAsync(new ShelfGone());
   }
 }
 
@@ -182,6 +262,21 @@ describe.each(platforms)('MapErrors on %s', (platform) => {
     const response = await (await start()).get('/deals/plain');
     expect(response.body).toEqual({ plain: true });
   });
+
+  it('responds 204 with an empty body for Ok(undefined) under HttpCode(204)', async () => {
+    const response = await (await start()).delete('/deals/7');
+    expect({ status: response.status, text: response.text }).toEqual({ status: 204, text: '' });
+  });
+
+  it('maps an Err from a private handler method', async () => {
+    const response = await (await start()).get('/deals/private/missing');
+    expect(response.status).toBe(404);
+  });
+
+  it('serializes the Ok value from a private handler method', async () => {
+    const response = await (await start()).get('/deals/private/7');
+    expect(response.body).toEqual({ id: '7' });
+  });
 });
 
 describe('ResultModule safety net', () => {
@@ -198,5 +293,81 @@ describe('ResultModule safety net', () => {
       status: 500,
       error: DuplicateNeverthrowError.forHandler('ForeignResultController.foreign'),
     });
+  });
+});
+
+describe.each(platforms)('MapErrors with error families on %s', (platform) => {
+  let app: INestApplication;
+
+  afterEach(async () => {
+    await app.close();
+  });
+
+  const start = async () => {
+    app = await createApp(platform, { imports: [ResultModule.forRoot()], controllers: [ProjectsController] });
+    return request(app.getHttpServer());
+  };
+
+  it('maps an error through its family key with the default body', async () => {
+    const response = await (await start()).get('/projects/family/task');
+    expect({ status: response.status, body: response.body }).toEqual({
+      status: 404,
+      body: { statusCode: 404, code: 'TaskNotFound', message: 'TaskNotFound' },
+    });
+  });
+
+  it('prefers a tag key over its family key', async () => {
+    const response = await (await start()).get('/projects/override/task');
+    expect(response.status).toBe(422);
+  });
+
+  it('maps another family member through the family key', async () => {
+    const response = await (await start()).get('/projects/override/project');
+    expect(response.status).toBe(404);
+  });
+});
+
+describe('MapErrors status validation', () => {
+  it('throws InvalidErrorStatusError at decoration time for a status outside 400–599', () => {
+    expect(() => MapErrors({ DealNotFound: 302 })).toThrow(InvalidErrorStatusError);
+  });
+});
+
+describe.each(platforms)('MapErrors with shared defaults on %s', (platform) => {
+  let app: INestApplication;
+
+  afterEach(async () => {
+    await app.close();
+  });
+
+  const start = async () => {
+    app = await createApp(platform, {
+      imports: [ResultModule.forRoot()],
+      controllers: [ProjectsController, ShelvesController],
+    });
+    return request(app.getHttpServer());
+  };
+
+  it('maps an error through a shared default', async () => {
+    const response = await (await start()).get('/projects/defaults/project');
+    expect({ status: response.status, body: response.body }).toEqual({
+      status: 404,
+      body: { statusCode: 404, code: 'ProjectNotFound', message: 'ProjectNotFound' },
+    });
+  });
+
+  it('keeps route keys for errors the defaults do not cover', async () => {
+    const response = await (await start()).get('/projects/defaults/archived');
+    expect(response.status).toBe(410);
+  });
+
+  it('prefers a route tag over a default family', async () => {
+    const response = await (await start()).get('/projects/default-override/task');
+    expect(response.status).toBe(422);
+  });
+
+  it('uses a default custom body as the whole body', async () => {
+    const response = await (await start()).get('/shelves');
+    expect({ status: response.status, body: response.body }).toEqual({ status: 410, body: { gone: 'ShelfGone' } });
   });
 });
