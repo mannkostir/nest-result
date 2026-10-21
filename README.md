@@ -285,6 +285,14 @@ A CommonJS host on NestJS 12 needs a TypeScript version and `moduleResolution` t
 
 On Node 22.12 a NestJS 12 host prints an `ExperimentalWarning` when it loads `nest-result` or `nest-result/swagger`, because the package's CommonJS build `require()`s NestJS 12's ES modules. The warning is harmless, and later Node 22 releases do not print it.
 
+The package's implementation is CommonJS, and its ES module entry points re-export it. A bundler that emits ES modules with the peers left external therefore keeps their `require()` calls, which fail at load with `Dynamic require of "@nestjs/common" is not supported`. Emit CommonJS, or define `require` in a banner. With esbuild:
+
+```bash
+esbuild src/main.ts --bundle --platform=node --format=esm \
+  --external:@nestjs/* --external:neverthrow --external:rxjs --external:reflect-metadata \
+  --banner:js="import { createRequire } from 'node:module'; const require = createRequire(import.meta.url);"
+```
+
 ## Example
 
 `examples/deals-api` is a runnable app. Build it against the packed package with `npm run example:build`, then start it with `npm --prefix examples/deals-api start`.
