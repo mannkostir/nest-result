@@ -79,7 +79,7 @@
     }
   },
   "scripts": {
-    "build": "tsup && node scripts/write-cjs-entry-points.js",
+    "build": "tsup && node scripts/write-esm-entry-points.js",
     "typecheck": "tsc -p tsconfig.json",
     "test": "vitest run",
     "test:diagnostics-snapshot": "vitest run --config vitest.snapshot.config.ts",

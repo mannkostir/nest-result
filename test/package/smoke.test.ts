@@ -1,5 +1,11 @@
 import { execFileSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
+
+const installedNestMajor = Number(
+  JSON.parse(readFileSync(new URL('../../node_modules/@nestjs/common/package.json', import.meta.url), 'utf8'))
+    .version.split('.')[0],
+);
 
 function run(args: readonly string[]): string {
   return execFileSync(process.execPath, args, { encoding: 'utf8' }).trim();
@@ -100,6 +106,36 @@ describe('built package', () => {
     ['nest-result/unit-of-work', 'withResultUnitOfWork'],
   ])('loads %s through import', (entry, name) => {
     const output = run(['--input-type=module', '-e', `console.log(typeof (await import('${entry}')).${name})`]);
+    expect(output).toBe('function');
+  });
+
+  it.each(['nest-result', 'nest-result/swagger', 'nest-result/transactional', 'nest-result/unit-of-work'])(
+    'exposes the same names for %s through import and require',
+    (entry) => {
+      const output = run([
+        '--input-type=module',
+        '-e',
+        `import { createRequire } from 'node:module'; const require = createRequire(import.meta.url); console.log(JSON.stringify([Object.keys(await import('${entry}')).sort(), Object.keys(require('${entry}')).sort()]))`,
+      ]);
+      const [imported, required] = JSON.parse(output);
+      expect(imported).toEqual(required);
+    },
+  );
+
+  it('loads nest-result/unit-of-work through require without require(esm)', () => {
+    const output = run([
+      '--no-experimental-require-module',
+      '-e',
+      "console.log(typeof require('nest-result/unit-of-work').withResultUnitOfWork)",
+    ]);
+    expect(output).toBe('function');
+  });
+
+  it.runIf(installedNestMajor === 11).each([
+    ['nest-result', 'MapErrors'],
+    ['nest-result/swagger', 'MapErrors'],
+  ])('loads %s through require without require(esm)', (entry, name) => {
+    const output = run(['--no-experimental-require-module', '-e', `console.log(typeof require('${entry}').${name})`]);
     expect(output).toBe('function');
   });
 });
