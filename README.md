@@ -273,15 +273,7 @@ const taskErrors = {
 
 ## Testing with Jest
 
-The package's implementation is ES modules. A CommonJS Jest setup, the NestJS 11 default, cannot `require` it unless Jest runs with Node's VM modules support. Start Jest through Node with the flag:
-
-```json
-{
-  "scripts": {
-    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js"
-  }
-}
-```
+A CommonJS Jest setup, the NestJS 11 default, loads the package without extra configuration. Earlier releases needed `--experimental-vm-modules`; it can be removed.
 
 ## Requirements
 
@@ -291,7 +283,7 @@ Node 22.12+, TypeScript 5.5+, `experimentalDecorators`, NestJS 11 or 12, neverth
 
 A CommonJS host on NestJS 12 needs a TypeScript version and `moduleResolution` that understand `require` of ES modules: TypeScript 5.8+ with `module: nodenext`. Older combinations report TS1479 on NestJS's own imports before they reach this package.
 
-On Node 22.12 a CommonJS host prints an `ExperimentalWarning` when it loads the package, because the CommonJS entry points `require()` the ES module build. The warning is harmless.
+On Node 22.12 a NestJS 12 host prints an `ExperimentalWarning` when it loads `nest-result` or `nest-result/swagger`, because the package's CommonJS build `require()`s NestJS 12's ES modules. The warning is harmless, and later Node 22 releases do not print it.
 
 ## Example
 
