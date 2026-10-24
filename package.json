@@ -1,6 +1,6 @@
 {
   "name": "nest-result",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Compiler-checked, exhaustive mapping of neverthrow Results to HTTP responses for NestJS, plus transactions that roll back on Err.",
   "keywords": [
     "nestjs",
