@@ -149,6 +149,22 @@ find(@Param('id') id: string): ResultAsync<Deal, DealNotFound | DealArchived> {
 
 Default keys count toward coverage but are never reported as stale, so one set of defaults serves every route. Route keys win over defaults. `toHttp(result, { DealArchived: 410 }, domainDefaults)` works the same way.
 
+### Problem details
+
+```ts
+export const domainDefaults = errorDefaults({ NotFound: 404, Conflict: 409 }, { body: 'problem-details' });
+```
+
+Every status-only entry of a route using these defaults, route keys included, then responds with an RFC 9457 problem details body:
+
+```json
+{ "type": "about:blank", "title": "Not Found", "status": 404, "detail": "Deal not found", "code": "DealNotFound", "instance": "/deals/1" }
+```
+
+`title` is the IANA reason phrase of the status; an unregistered code takes the phrase of its class's x00 code. `instance` is the request path without the query string. Payload fields are never included. This applies through `MapErrors.withDefaults`, the Swagger `MapErrors.withDefaults` and `toHttp(source, map, defaults)`; `MapErrors(map)` and `toHttp` without defaults keep the default body.
+
+The interceptor sends the body as `application/problem+json`. It sets that header when it maps the Err, so an exception filter that rewrites the body should also set its own content type. `toHttp` cannot set headers: its problem body, without `instance`, goes out as `application/json`. Custom `body` functions are sent as-is, as `application/json`.
+
 ### Statuses
 
 Error statuses must be literal integers from 400 to 599. `{ DealNotFound: 200 }` or a status typed as `number` fails compilation with `ErrorStatusOutOfRange<...>`, and a status smuggled in through a cast throws `InvalidErrorStatusError` when the map is built.
@@ -170,6 +186,8 @@ import { MapErrors } from 'nest-result/swagger';
 Same decorator, plus one `@ApiResponse` per mapped status, listing the tags that share it, with a response schema. Requires `@nestjs/swagger`.
 
 The default body is documented as `statusCode`, `code` and `message`, where `code` is an enum of the tags at that status that use the default body and have no `schemas` entry, with one example per tag.
+
+With problem details defaults, their status-only entries are documented under `application/problem+json` as `type`, `title`, `status`, `detail`, `code` and an optional `instance`, with one example per tag. Custom bodies at the same status stay under `application/json`, so that status lists both media types.
 
 With shared defaults, name the defaults the route actually uses, so the document lists only responses the route can produce:
 
