@@ -19,6 +19,7 @@ export {
   DuplicateNeverthrowError,
   InvalidErrorStatusError,
   MissingErrorMapError,
+  ResultInterceptorOrderError,
   UnmappedErrorTagError,
   UntaggedErrorValueError,
 } from './core/library-errors.js';
