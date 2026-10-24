@@ -1,5 +1,12 @@
 import { Controller, Get, type INestApplication, Param } from '@nestjs/common';
-import { ApiProperty, DocumentBuilder, type OpenAPIObject, type SchemaObject, SwaggerModule } from '@nestjs/swagger';
+import {
+  ApiNotFoundResponse,
+  ApiProperty,
+  DocumentBuilder,
+  type OpenAPIObject,
+  type SchemaObject,
+  SwaggerModule,
+} from '@nestjs/swagger';
 import { errAsync, okAsync, type ResultAsync } from 'neverthrow';
 import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -88,13 +95,33 @@ class PaymentsController {
   }
 }
 
+class DealSummary {
+  @ApiProperty({ type: String })
+  readonly id!: string;
+}
+
+@Controller('summaries')
+class SummariesController {
+  @Get(':id')
+  @ApiNotFoundResponse({ type: DealSummary })
+  @MapErrors({ DealNotFound: 404 })
+  find(@Param('id') id: string): ResultAsync<{ id: string }, DealNotFound> {
+    return okAsync({ id });
+  }
+}
+
+const controllers = [DealsController, ProjectsController, PaymentsController, SummariesController];
+
+const documentOf = (app: INestApplication): OpenAPIObject =>
+  SwaggerModule.createDocument(app, new DocumentBuilder().build());
+
 describe('swagger MapErrors', () => {
   let app: INestApplication;
   let document: OpenAPIObject;
 
   beforeAll(async () => {
-    app = await createApp('express', { controllers: [DealsController, ProjectsController, PaymentsController] });
-    document = SwaggerModule.createDocument(app, new DocumentBuilder().build());
+    app = await createApp('express', { controllers });
+    document = documentOf(app);
   });
 
   afterAll(async () => {
@@ -255,6 +282,25 @@ describe('swagger MapErrors', () => {
       description: 'AccessDenied',
       content: { 'application/json': { schema: retrySchema } },
     });
+  });
+
+  it('produces the same document on Express and Fastify', async () => {
+    const expressApp = await createApp('express', { controllers });
+    const fastifyApp = await createApp('fastify', { controllers });
+    const expressDocument = documentOf(expressApp);
+    const fastifyDocument = documentOf(fastifyApp);
+    await Promise.all([expressApp.close(), fastifyApp.close()]);
+    expect({ paths: fastifyDocument.paths, components: fastifyDocument.components }).toEqual({
+      paths: expressDocument.paths,
+      components: expressDocument.components,
+    });
+  });
+
+  it('keeps the type of a response decorator applied after it', () => {
+    expect(document.paths['/summaries/{id}']?.get?.responses['404']).toHaveProperty(
+      ['content', 'application/json', 'schema'],
+      { $ref: '#/components/schemas/DealSummary' },
+    );
   });
 
   it('maps an Err through the defaults at runtime', async () => {
