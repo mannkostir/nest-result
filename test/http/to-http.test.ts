@@ -85,6 +85,18 @@ describe('toHttp', () => {
     await expect(toHttp(untagged, { DealNotFound: 404 })).rejects.toBeInstanceOf(UntaggedErrorValueError);
   });
 
+  it('rejects with a problem details body without an instance under problem defaults', async () => {
+    const defaults = errorDefaults({ NotFound: 404 }, { body: 'problem-details' });
+    const thrown = await rejectionOf(toHttp(err(new TaskNotFound()), {}, defaults));
+    expect((thrown as HttpException).getResponse()).toStrictEqual({
+      type: 'about:blank',
+      title: 'Not Found',
+      status: 404,
+      detail: 'TaskNotFound',
+      code: 'TaskNotFound',
+    });
+  });
+
   it('rejects with an HttpException instance', async () => {
     await expect(toHttp(err(notFound()), { DealNotFound: 404 })).rejects.toBeInstanceOf(HttpException);
   });
@@ -100,6 +112,15 @@ class DealsController {
   }
 }
 
+@Controller('tasks')
+class TasksController {
+  @Get(':id')
+  find(): Promise<{ id: string }> {
+    const result: Result<{ id: string }, TaskNotFound> = err(new TaskNotFound());
+    return toHttp(result, {}, errorDefaults({ NotFound: 404 }, { body: 'problem-details' }));
+  }
+}
+
 describe.each(platforms)('toHttp in a controller on %s', (platform) => {
   let app: INestApplication;
 
@@ -108,7 +129,7 @@ describe.each(platforms)('toHttp in a controller on %s', (platform) => {
   });
 
   const start = async () => {
-    app = await createApp(platform, { controllers: [DealsController] });
+    app = await createApp(platform, { controllers: [DealsController, TasksController] });
     return request(app.getHttpServer());
   };
 
@@ -123,5 +144,18 @@ describe.each(platforms)('toHttp in a controller on %s', (platform) => {
       status: 404,
       body: { statusCode: 404, code: 'DealNotFound', message: 'Deal not found' },
     });
+  });
+
+  it('responds with a problem details body without an instance under problem defaults', async () => {
+    const response = await (await start()).get('/tasks/7');
+    expect({ status: response.status, body: response.body }).toStrictEqual({
+      status: 404,
+      body: { type: 'about:blank', title: 'Not Found', status: 404, detail: 'TaskNotFound', code: 'TaskNotFound' },
+    });
+  });
+
+  it('sends a problem details body as application/json', async () => {
+    const response = await (await start()).get('/tasks/7');
+    expect(response.headers['content-type']).toMatch(/^application\/json/);
   });
 });
