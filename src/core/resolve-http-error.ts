@@ -38,7 +38,8 @@ function defaultBody(status: number, tag: string, error: unknown): object {
 }
 
 function problemBody(status: number, tag: string, error: unknown, instance: string | undefined): object {
-  const body = { type: 'about:blank', title: reasonPhraseOf(status), status, detail: readMessage(error) ?? tag, code: tag };
+  const detail = readMessage(error) ?? tag;
+  const body = { type: 'about:blank', title: reasonPhraseOf(status), status, detail, code: tag };
   return instance === undefined ? body : { ...body, instance };
 }
 

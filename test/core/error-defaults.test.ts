@@ -16,7 +16,11 @@ describe('errorDefaults', () => {
   });
 
   it('returns the given mappings under the problem details format', () => {
-    expect(errorDefaults({ NotFound: 404, Conflict: 409 }, { body: 'problem-details' })).toEqual({ NotFound: 404, Conflict: 409 });
+    const defaults = errorDefaults({ NotFound: 404, Conflict: 409 }, { body: 'problem-details' });
+    expect(Object.entries(defaults)).toEqual([
+      ['NotFound', 404],
+      ['Conflict', 409],
+    ]);
   });
 
   it('returns a frozen copy under the problem details format', () => {

@@ -16,8 +16,8 @@ export function errorDefaults<const D extends AnyErrorMap>(
   options: ErrorDefaultsOptions = {},
 ): ErrorDefaults<D> {
   assertErrorStatuses(defaults);
-  const copy = Object.defineProperty({ ...defaults }, bodyFormatKey, { value: options.body ?? 'plain' });
-  return Object.freeze(copy) as unknown as ErrorDefaults<D>;
+  const format = options.body === undefined ? {} : { [bodyFormatKey]: options.body };
+  return Object.freeze({ ...defaults, ...format }) as unknown as ErrorDefaults<D>;
 }
 
 export function bodyFormatOf(defaults: object): ErrorBodyFormat {

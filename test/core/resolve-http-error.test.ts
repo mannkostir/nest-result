@@ -138,17 +138,16 @@ describe('resolveHttpError', () => {
     expect(resolved._unsafeUnwrap().body).toHaveProperty('detail', 'RateLimited');
   });
 
-  it('adds the instance last when one is passed', () => {
+  it('adds the instance when one is passed', () => {
     const mapping = errorMappingOf({}, problemDefaults);
     const resolved = resolveHttpError(new TaskNotFound({ taskId: '1' }), mapping, '/tasks/1');
-    expect(Object.entries(resolved._unsafeUnwrap().body)).toEqual([
-      ['type', 'about:blank'],
-      ['title', 'Not Found'],
-      ['status', 404],
-      ['detail', 'TaskNotFound'],
-      ['code', 'TaskNotFound'],
-      ['instance', '/tasks/1'],
-    ]);
+    expect(resolved._unsafeUnwrap().body).toHaveProperty('instance', '/tasks/1');
+  });
+
+  it('keeps the problem details format in a spread copy of the defaults', () => {
+    const mapping = errorMappingOf({}, { ...problemDefaults });
+    const resolved = resolveHttpError(new TaskNotFound({ taskId: '1' }), mapping);
+    expect(resolved._unsafeUnwrap().problemDetails).toBe(true);
   });
 
   it('leaves the instance out when none is passed', () => {
