@@ -108,7 +108,20 @@ find(@Param('id') id: string): Promise<Deal> {
 
 ### As a decorator: `MapErrors`
 
-`MapErrors` checks the method's return type against the map and converts the Result in a route-level interceptor. Because it runs innermost, global interceptors such as `ClassSerializerInterceptor` see the unwrapped value.
+`MapErrors` checks the method's return type against the map and converts the Result in a route-level interceptor. That interceptor runs inside global and controller-level interceptors, so they, `ClassSerializerInterceptor` included, see the unwrapped value.
+
+Method-level interceptors must be declared below `@MapErrors`:
+
+```ts
+@Get(':id')
+@MapErrors({ DealNotFound: 404 })
+@UseInterceptors(ClassSerializerInterceptor)
+find(@Param('id') id: string): Result<Deal, DealNotFound> {
+  return this.deals.find(id);
+}
+```
+
+Declared above it, they would see the Result itself, so the request fails with 500 and a logged `ResultInterceptorOrderError` before the handler runs.
 
 ### Custom bodies
 

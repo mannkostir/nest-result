@@ -27,6 +27,18 @@ export class MissingErrorMapError extends TaggedError('MissingErrorMapError')<{
   }
 }
 
+export class ResultInterceptorOrderError extends TaggedError('ResultInterceptorOrderError')<{
+  readonly handler: string;
+  readonly message: string;
+}> {
+  static forHandler(handler: string): ResultInterceptorOrderError {
+    return new ResultInterceptorOrderError({
+      handler,
+      message: `${handler} declares a method-level interceptor above @MapErrors; declare it below @MapErrors, or at controller or global level`,
+    });
+  }
+}
+
 export class DuplicateNeverthrowError extends TaggedError('DuplicateNeverthrowError')<{
   readonly handler: string;
   readonly message: string;

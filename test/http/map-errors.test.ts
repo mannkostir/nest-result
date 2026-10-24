@@ -10,7 +10,6 @@ import {
   HttpException,
   type INestApplication,
   Inject,
-  Injectable,
   Param,
   Post,
 } from '@nestjs/common';
@@ -30,6 +29,7 @@ import {
 } from '../../src/index.js';
 import { createApp, platforms } from '../support/create-app.js';
 import { AccessDenied, DealNotFound, ProjectArchived, ProjectNotFound, TaskNotFound } from '../support/errors.js';
+import { ExceptionRecorder, recordingProviders } from '../support/exception-recorder.js';
 
 class DealView {
   constructor(
@@ -154,32 +154,6 @@ class ShelvesController {
   }
 }
 
-@Injectable()
-class ExceptionRecorder {
-  private recorded: unknown;
-
-  record(exception: unknown): void {
-    this.recorded = exception;
-  }
-
-  get last(): unknown {
-    return this.recorded;
-  }
-}
-
-@Catch()
-class RecordingFilter implements ExceptionFilter {
-  constructor(
-    @Inject(ExceptionRecorder) private readonly recorder: ExceptionRecorder,
-    @Inject(HttpAdapterHost) private readonly adapterHost: HttpAdapterHost,
-  ) {}
-
-  catch(exception: unknown, host: ArgumentsHost): void {
-    this.recorder.record(exception);
-    this.adapterHost.httpAdapter.reply(host.switchToHttp().getResponse(), { statusCode: 500 }, 500);
-  }
-}
-
 @Catch(HttpException)
 class WrappingFilter implements ExceptionFilter {
   constructor(@Inject(HttpAdapterHost) private readonly adapterHost: HttpAdapterHost) {}
@@ -189,8 +163,6 @@ class WrappingFilter implements ExceptionFilter {
     this.adapterHost.httpAdapter.reply(host.switchToHttp().getResponse(), { wrapped: status }, status);
   }
 }
-
-const recordingProviders = [ExceptionRecorder, { provide: APP_FILTER, useClass: RecordingFilter }];
 
 describe.each(platforms)('MapErrors on %s', (platform) => {
   let app: INestApplication;
