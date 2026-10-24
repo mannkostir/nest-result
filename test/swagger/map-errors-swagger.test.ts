@@ -28,13 +28,13 @@ type ProjectError = ProjectNotFound | TaskNotFound | ProjectArchived;
 @Controller('projects')
 class ProjectsController {
   @Get(':id')
-  @DocumentedDomainErrors({ ProjectArchived: 410 }, { uses: ['NotFound'] })
+  @DocumentedDomainErrors({ ProjectArchived: 410 }, { uses: ['NotFound'], families: ['NotFound'] })
   find(@Param('id') id: string): ResultAsync<{ id: string }, ProjectError> {
     return id === 'x' ? errAsync(new TaskNotFound({ taskId: id })) : okAsync({ id });
   }
 
   @Get('override/:id')
-  @DocumentedDomainErrors({ NotFound: 422, ProjectArchived: 410 }, { uses: [] })
+  @DocumentedDomainErrors({ NotFound: 422, ProjectArchived: 410 }, { uses: [], families: ['NotFound'] })
   findOverridden(@Param('id') id: string): ResultAsync<{ id: string }, ProjectError> {
     return okAsync({ id });
   }

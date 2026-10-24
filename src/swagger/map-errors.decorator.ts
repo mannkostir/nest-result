@@ -1,12 +1,14 @@
-import { ApiResponse } from '@nestjs/swagger';
+import type { Type } from '@nestjs/common';
+import { ApiResponse, type SchemaObject } from '@nestjs/swagger';
+import type { FailWhen, FirstFailure } from '../core/checks.js';
 import type { UsedDefaultKeys } from '../core/coverage.js';
 import type { ErrorDefaults } from '../core/error-defaults.js';
 import type { AnyErrorMap, ErrorMapCheck } from '../core/error-map.js';
 import { errorMappingOf, type ErrorMapping } from '../core/error-mapping.js';
 import { statusOf } from '../core/error-status.js';
 import type { ErrorOfReturn, ResultReturningMethod } from '../core/result-source.js';
+import type { FamilyOf } from '../core/tags.js';
 import { applyErrorMap } from '../http/apply-error-map.js';
-import type { MapErrorsDecorator } from '../http/map-errors.decorator.js';
 
 export type MissingDefaultUses<K> = { readonly __missingDefaultUses: K };
 
@@ -18,32 +20,71 @@ type DefaultUsesCheck<E, M, D, U> = [Exclude<UsedDefaultKeys<E, keyof M, keyof D
     : StaleDefaultUses<Exclude<U, UsedDefaultKeys<E, keyof M, keyof D>>>
   : MissingDefaultUses<Exclude<UsedDefaultKeys<E, keyof M, keyof D>, U>>;
 
-export type DocumentedDefaults<U extends string> = { readonly uses: readonly U[] };
+type FamilyKeysInUse<E, M, D> = Extract<keyof M | UsedDefaultKeys<E, keyof M, keyof D>, FamilyOf<E>>;
 
-export type DocumentedMapErrorsDecorator<M, D, U> = <F extends ResultReturningMethod>(
+export type MissingFamilyKeys<K> = { readonly __missingFamilyKeys: K };
+
+export type StaleFamilyKeys<K> = { readonly __staleFamilyKeys: K };
+
+type DocumentationCheck<E, M, D, U, Fam> = FirstFailure<
+  [
+    DefaultUsesCheck<E, M, D, U>,
+    FailWhen<Exclude<FamilyKeysInUse<E, M, D>, Fam>, MissingFamilyKeys<Exclude<FamilyKeysInUse<E, M, D>, Fam>>>,
+    FailWhen<Exclude<Fam, FamilyKeysInUse<E, M, D>>, StaleFamilyKeys<Exclude<Fam, FamilyKeysInUse<E, M, D>>>>,
+  ]
+>;
+
+export type ErrorBodySchema = Type<unknown> | SchemaObject;
+
+export type ErrorSchemas<K extends string> = { readonly [P in K]?: ErrorBodySchema };
+
+export type DocumentedErrors<Fam extends string, K extends string> = {
+  readonly families?: readonly Fam[];
+  readonly schemas?: ErrorSchemas<K>;
+};
+
+export type DocumentedDefaults<U extends string, Fam extends string = never, K extends string = U> = {
+  readonly uses: readonly U[];
+  readonly families?: readonly Fam[];
+  readonly schemas?: ErrorSchemas<K>;
+};
+
+export type DocumentedMapErrorsDecorator<M, D, U, Fam = never> = <F extends ResultReturningMethod>(
   target: object,
   key: string | symbol,
   descriptor: TypedPropertyDescriptor<F> &
     ErrorMapCheck<ErrorOfReturn<ReturnType<F>>, M, D> &
-    DefaultUsesCheck<ErrorOfReturn<ReturnType<F>>, M, D, U>,
+    DocumentationCheck<ErrorOfReturn<ReturnType<F>>, M, D, U, Fam>,
 ) => void;
 
-export type DocumentedMapErrorsWithDefaults<D> = <const M extends AnyErrorMap, const U extends keyof D & string = never>(
+export type DocumentedMapErrorsWithDefaults<D> = <
+  const M extends AnyErrorMap,
+  const U extends keyof D & string = never,
+  const Fam extends string = never,
+>(
   map: M,
-  documentation: DocumentedDefaults<U>,
-) => DocumentedMapErrorsDecorator<M, D, U>;
+  documentation: DocumentedDefaults<U, Fam, NoInfer<(keyof M & string) | U>>,
+) => DocumentedMapErrorsDecorator<M, D, U, Fam>;
 
 type Decorate = (target: object, key: string | symbol, descriptor: PropertyDescriptor) => void;
 
-function documentedMapErrors<const M extends AnyErrorMap>(map: M): MapErrorsDecorator<M> {
-  return documentWith(errorMappingOf(map), map);
+function documentedMapErrors<const M extends AnyErrorMap, const Fam extends string = never>(
+  map: M,
+  documentation: DocumentedErrors<Fam, NoInfer<keyof M & string>> = {},
+): DocumentedMapErrorsDecorator<M, {}, never, Fam> {
+  return documentWith(errorMappingOf(map), map, documentation);
 }
 
 function withDefaults<D extends AnyErrorMap>(defaults: ErrorDefaults<D>): DocumentedMapErrorsWithDefaults<D> {
-  return (map, { uses }) => documentWith(errorMappingOf(map, defaults), { ...pickKeys(defaults, uses), ...map });
+  return (map, { uses, ...documentation }) =>
+    documentWith(errorMappingOf(map, defaults), { ...pickKeys(defaults, uses), ...map }, documentation);
 }
 
-function documentWith(mapping: ErrorMapping, documented: AnyErrorMap): Decorate {
+function documentWith(
+  mapping: ErrorMapping,
+  documented: AnyErrorMap,
+  documentation: DocumentedErrors<string, string>,
+): Decorate {
   return (target, key, descriptor) => {
     applyErrorMap(mapping, target, key, descriptor);
     keysByStatus(documented).forEach((keys, status) =>
