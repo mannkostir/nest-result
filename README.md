@@ -169,7 +169,7 @@ import { MapErrors } from 'nest-result/swagger';
 
 Same decorator, plus one `@ApiResponse` per mapped status, listing the tags that share it, with a response schema. Requires `@nestjs/swagger`.
 
-The default body is documented as `statusCode`, `code` and `message`, where `code` is an enum of the tags at that status, with one example per tag.
+The default body is documented as `statusCode`, `code` and `message`, where `code` is an enum of the tags at that status that use the default body and have no `schemas` entry, with one example per tag.
 
 With shared defaults, name the defaults the route actually uses, so the document lists only responses the route can produce:
 

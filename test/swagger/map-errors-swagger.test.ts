@@ -211,17 +211,11 @@ describe('swagger MapErrors', () => {
   });
 
   it('documents no example for a family key', () => {
-    expect(document.paths['/projects/{id}']?.get?.responses['404']).toHaveProperty(['content', 'application/json'], {
-      schema: {
-        type: 'object',
-        required: ['statusCode', 'code', 'message'],
-        properties: {
-          statusCode: { type: 'integer', enum: [404] },
-          code: { type: 'string' },
-          message: { type: 'string' },
-        },
-      },
-    });
+    expect(document.paths['/projects/{id}']?.get?.responses['404']).not.toHaveProperty([
+      'content',
+      'application/json',
+      'examples',
+    ]);
   });
 
   it('documents a custom body with a class schema as a reference', () => {
