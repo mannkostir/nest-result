@@ -72,6 +72,18 @@ describe('compiler diagnostics for common mistakes', () => {
     expect(diagnostics.get('swagger-stale-uses')).toContain('StaleDefaultUses<"Conflict">');
   });
 
+  it('names a family key in use missing from the Swagger families list', () => {
+    expect(diagnostics.get('swagger-missing-families')).toContain('MissingFamilyKeys<"NotFound">');
+  });
+
+  it('names a name in the Swagger families list that is not a family key in use', () => {
+    expect(diagnostics.get('swagger-stale-families')).toContain('StaleFamilyKeys<"Conflict">');
+  });
+
+  it('reports a shadowed family key on the Swagger MapErrors as stale without asking to list it', () => {
+    expect(diagnostics.get('swagger-shadowed-family')).not.toContain('FamilyKeys');
+  });
+
   it('names the unhandled tag when matchError omits a handler', () => {
     expect(diagnostics.get('match-error-missing')).toContain('MissingErrorHandlers<"AccessDenied">');
   });

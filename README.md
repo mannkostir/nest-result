@@ -167,7 +167,9 @@ Error statuses must be literal integers from 400 to 599. `{ DealNotFound: 200 }`
 import { MapErrors } from 'nest-result/swagger';
 ```
 
-Same decorator, plus one `@ApiResponse` per mapped status, listing the tags that share it. Requires `@nestjs/swagger`.
+Same decorator, plus one `@ApiResponse` per mapped status, listing the tags that share it, with a response schema. Requires `@nestjs/swagger`.
+
+The default body is documented as `statusCode`, `code` and `message`, where `code` is an enum of the tags at that status that use the default body and have no `schemas` entry, with one example per tag.
 
 With shared defaults, name the defaults the route actually uses, so the document lists only responses the route can produce:
 
@@ -176,10 +178,27 @@ import { MapErrors } from 'nest-result/swagger';
 
 const DocumentedDomainErrors = MapErrors.withDefaults(domainDefaults);
 
-@DocumentedDomainErrors({ DealArchived: 410 }, { uses: ['NotFound'] })
+@DocumentedDomainErrors({ DealArchived: 410 }, { uses: ['NotFound'], families: ['NotFound'] })
 ```
 
 The list is checked exactly: a used default missing from it is `MissingDefaultUses<"...">`, and a listed default the route cannot produce is `StaleDefaultUses<"...">`.
+
+### Family keys
+
+List the family keys the route uses, from its map or its used defaults, in `families`. Their status documents `code` as a plain string, because the runtime code is the member's tag, and the description marks the key `(family)`. The list is checked exactly: a family key in use missing from it is `MissingFamilyKeys<"...">`, and a listed name that is not a family key in use is `StaleFamilyKeys<"...">`.
+
+### Custom body schemas
+
+A custom body is documented through `schemas`, keyed by map key or `uses` key, with a DTO class or a `SchemaObject`:
+
+```ts
+@MapErrors(
+  { DealNotFound: 404, RateLimited: { status: 429, body: (e: RateLimited) => ({ retryAfter: e.retryAfter }) } },
+  { schemas: { RateLimited: RetryDto } },
+)
+```
+
+A custom body without a `schemas` entry leaves its status without a schema. Several bodies at one status are documented as `oneOf`.
 
 ## Matching errors without HTTP
 
@@ -267,6 +286,10 @@ close(id: string): ResultAsync<Deal, DealNotFound | DealClosed> {
 2. Add `ResultModule.forRoot()` to your root module and delete your interceptor.
 3. Add `@MapErrors({...})` to each route that returns a Result; the compiler lists every tag you still need to map.
 4. Remove `HttpException`s from your domain code; map domain errors at the controller instead.
+
+## Migrating from 0.3
+
+- Swagger `MapErrors` routes whose map or used defaults contain a family key must list it in `families`, otherwise compilation fails with `MissingFamilyKeys<"...">`. Tag-only routes, the core `MapErrors` and `toHttp` are unaffected.
 
 ## Migrating from 0.1
 

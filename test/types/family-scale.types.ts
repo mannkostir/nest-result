@@ -88,7 +88,10 @@ matchError(error, {
 export class FamilyScaleController {
   @DocumentedFamilyErrors(
     { E0: 410 },
-    { uses: ['NotFound', 'Conflict', 'Forbidden', 'Invalid', 'Unavailable'] },
+    {
+      uses: ['NotFound', 'Conflict', 'Forbidden', 'Invalid', 'Unavailable'],
+      families: ['NotFound', 'Conflict', 'Forbidden', 'Invalid', 'Unavailable'],
+    },
   )
   documented(): ResultAsync<number, AllErrors> {
     return result;
