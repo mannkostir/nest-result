@@ -26,11 +26,17 @@ export type MissingFamilyKeys<K> = { readonly __missingFamilyKeys: K };
 
 export type StaleFamilyKeys<K> = { readonly __staleFamilyKeys: K };
 
+type FamiliesCheck<E, M, D, Fam> = FirstFailure<
+  [
+    FailWhen<Exclude<FamilyKeysInUse<E, M, D>, Fam>, MissingFamilyKeys<Exclude<FamilyKeysInUse<E, M, D>, Fam>>>,
+    FailWhen<Exclude<Fam, FamilyKeysInUse<E, M, D>>, StaleFamilyKeys<Exclude<Fam, FamilyKeysInUse<E, M, D>>>>,
+  ]
+>;
+
 type DocumentationCheck<E, M, D, U, Fam> = FirstFailure<
   [
     DefaultUsesCheck<E, M, D, U>,
-    FailWhen<Exclude<FamilyKeysInUse<E, M, D>, Fam>, MissingFamilyKeys<Exclude<FamilyKeysInUse<E, M, D>, Fam>>>,
-    FailWhen<Exclude<Fam, FamilyKeysInUse<E, M, D>>, StaleFamilyKeys<Exclude<Fam, FamilyKeysInUse<E, M, D>>>>,
+    unknown extends ErrorMapCheck<E, M, D> ? FamiliesCheck<E, M, D, Fam> : unknown,
   ]
 >;
 
