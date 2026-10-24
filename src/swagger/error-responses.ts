@@ -29,7 +29,7 @@ type ErrorResponses = {
 
 type DefaultBody = { readonly kind: 'default'; readonly key: string };
 
-type GivenBody = { readonly kind: 'given'; readonly schema: ErrorBodySchema };
+type GivenBody = { readonly kind: 'given'; readonly schema: ErrorBodySchema; readonly statusOnly: boolean };
 
 type UndocumentedBody = { readonly kind: 'undocumented' };
 
@@ -77,7 +77,7 @@ function entriesByStatus(map: AnyErrorMap): ReadonlyMap<number, readonly ErrorEn
 
 function bodyOf(key: string, spec: AnyHttpErrorSpec, schemas: ErrorSchemas<string>): KeyBody {
   const schema = Object.hasOwn(schemas, key) ? schemas[key] : undefined;
-  if (schema !== undefined) return { kind: 'given', schema };
+  if (schema !== undefined) return { kind: 'given', schema, statusOnly: typeof spec === 'number' };
   return typeof spec === 'number' ? { kind: 'default', key } : { kind: 'undocumented' };
 }
 
@@ -113,15 +113,19 @@ function plainContentOf({ status, families, bodies }: StatusBodies): ContentObje
 }
 
 function problemContentOf({ status, families, bodies }: StatusBodies): ContentObject {
-  const keys = defaultKeysOf(bodies);
-  const given = givenSchemasOf(bodies);
+  const problemSchema = problemBodySchema(status, defaultKeysOf(bodies), families);
+  const problems = distinct(bodies.flatMap((body) => problemAlternativesOf(body, problemSchema)));
+  const customs = givenSchemasOf(bodies.filter((body) => body.kind === 'given' && !body.statusOnly));
   const examples = examplesOf(exampleTagsOf(bodies, families), (tag) => problemExample(status, tag));
   return {
-    ...(keys.length > 0
-      ? { 'application/problem+json': mediaTypeOf([problemBodySchema(status, keys, families)], examples) }
-      : {}),
-    ...(given.length > 0 ? { 'application/json': mediaTypeOf(given, {}) } : {}),
+    ...(problems.length > 0 ? { 'application/problem+json': mediaTypeOf(problems, examples) } : {}),
+    ...(customs.length > 0 ? { 'application/json': mediaTypeOf(customs, {}) } : {}),
   };
+}
+
+function problemAlternativesOf(body: DocumentedBody, problemSchema: SchemaObject): readonly ErrorBodySchema[] {
+  if (body.kind === 'default') return [problemSchema];
+  return body.statusOnly ? [body.schema] : [];
 }
 
 function mediaTypeOf(alternatives: readonly ErrorBodySchema[], examples: ExamplesObject): MediaTypeObject {

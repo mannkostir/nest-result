@@ -142,6 +142,24 @@ class ProblemsController {
   replaced(): ResultAsync<{ id: string }, AccessDenied> {
     return okAsync({ id: 'p' });
   }
+
+  @Get('combined')
+  @DocumentedProblemErrors(
+    { DealNotFound: 404, AccessDenied: 404 },
+    { uses: [], schemas: { AccessDenied: retrySchema } },
+  )
+  combined(): ResultAsync<{ id: string }, DealNotFound | AccessDenied> {
+    return okAsync({ id: 'p' });
+  }
+
+  @Get('custom')
+  @DocumentedProblemErrors(
+    { Unavailable: { status: 503, body: retryBody } },
+    { uses: [], schemas: { Unavailable: RetryBody } },
+  )
+  custom(): ResultAsync<{ id: string }, Unavailable> {
+    return okAsync({ id: 'p' });
+  }
 }
 
 const controllers = [DealsController, ProjectsController, PaymentsController, SummariesController, ProblemsController];
@@ -337,24 +355,21 @@ describe('swagger MapErrors', () => {
   });
 
   it('documents the problem details body of a default-body status under application/problem+json', () => {
-    expect(document.paths['/problems/deals/{id}']?.get?.responses['404']).toMatchObject({
-      content: {
-        'application/problem+json': {
-          schema: {
-            type: 'object',
-            required: ['type', 'title', 'status', 'detail', 'code'],
-            properties: {
-              type: { type: 'string', enum: ['about:blank'] },
-              title: { type: 'string', enum: ['Not Found'] },
-              status: { type: 'integer', enum: [404] },
-              detail: { type: 'string' },
-              code: { type: 'string', enum: ['DealNotFound', 'AccessDenied'] },
-              instance: { type: 'string', format: 'uri-reference' },
-            },
-          },
+    expect(document.paths['/problems/deals/{id}']?.get?.responses['404']).toHaveProperty(
+      ['content', 'application/problem+json', 'schema'],
+      {
+        type: 'object',
+        required: ['type', 'title', 'status', 'detail', 'code'],
+        properties: {
+          type: { type: 'string', enum: ['about:blank'] },
+          title: { type: 'string', enum: ['Not Found'] },
+          status: { type: 'integer', enum: [404] },
+          detail: { type: 'string' },
+          code: { type: 'string', enum: ['DealNotFound', 'AccessDenied'] },
+          instance: { type: 'string', format: 'uri-reference' },
         },
       },
-    });
+    );
   });
 
   it('documents a problem details status without an application/json body', () => {
@@ -405,10 +420,27 @@ describe('swagger MapErrors', () => {
     });
   });
 
-  it('documents a schema given for every key of a problem details status under application/json only', () => {
+  it('documents a schema given for a status-only problem details key under application/problem+json', () => {
     expect(document.paths['/problems/replaced']?.get?.responses['403']).toEqual({
       description: 'AccessDenied',
-      content: { 'application/json': { schema: retrySchema } },
+      content: { 'application/problem+json': { schema: retrySchema } },
+    });
+  });
+
+  it('documents a schema given for a status-only key beside the problem details schema as an alternative', () => {
+    expect(document.paths['/problems/combined']?.get?.responses['404']).toMatchObject({
+      content: {
+        'application/problem+json': {
+          schema: { oneOf: [{ properties: { code: { enum: ['DealNotFound'] } } }, retrySchema] },
+        },
+      },
+    });
+  });
+
+  it('documents a schema given for a custom-body key of problem details defaults under application/json', () => {
+    expect(document.paths['/problems/custom']?.get?.responses['503']).toEqual({
+      description: 'Unavailable',
+      content: { 'application/json': { schema: { $ref: '#/components/schemas/RetryBody' } } },
     });
   });
 
