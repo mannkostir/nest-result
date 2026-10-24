@@ -81,6 +81,14 @@ class InterceptorAboveMapErrorsController {
   wrapped(@Param('id') id: string): Result<{ id: string }, DealNotFound> {
     return dealSummary(id);
   }
+
+  @Get('instance/:id')
+  @UseInterceptors(new DataWrappingInterceptor())
+  @MapErrors({ DealNotFound: 404 })
+  instance(@Param('id') id: string): Result<{ id: string }, DealNotFound> {
+    this.callLog.record('instance');
+    return dealSummary(id);
+  }
 }
 
 @Controller('below')
@@ -147,6 +155,48 @@ describe.each(platforms)('a method-level interceptor declared above MapErrors on
     expect({ status: response.status, error: app.get(ExceptionRecorder).last }).toStrictEqual({
       status: 500,
       error: ResultInterceptorOrderError.forHandler('InterceptorAboveMapErrorsController.wrapped'),
+    });
+  });
+
+  it('does not call the handler', async () => {
+    await (await start()).get('/above/serialized/7');
+    expect(app.get(HandlerCallLog).calls).toEqual([]);
+  });
+
+  it('fails with 500 when an interceptor instance above MapErrors would see an Err', async () => {
+    const response = await (await start()).get('/above/instance/missing');
+    expect({ status: response.status, error: app.get(ExceptionRecorder).last }).toStrictEqual({
+      status: 500,
+      error: ResultInterceptorOrderError.forHandler('InterceptorAboveMapErrorsController.instance'),
+    });
+  });
+
+  it('does not call the handler under an interceptor instance', async () => {
+    await (await start()).get('/above/instance/7');
+    expect(app.get(HandlerCallLog).calls).toEqual([]);
+  });
+});
+
+describe.each(platforms)('a method-level interceptor above MapErrors without ResultModule on %s', (platform) => {
+  let app: INestApplication;
+
+  afterEach(async () => {
+    await app.close();
+  });
+
+  const start = async () => {
+    app = await createApp(platform, {
+      controllers: [InterceptorAboveMapErrorsController],
+      providers: [HandlerCallLog, ...recordingProviders],
+    });
+    return request(app.getHttpServer());
+  };
+
+  it('fails with 500 from the route-level interceptor', async () => {
+    const response = await (await start()).get('/above/serialized/missing');
+    expect({ status: response.status, error: app.get(ExceptionRecorder).last }).toStrictEqual({
+      status: 500,
+      error: ResultInterceptorOrderError.forHandler('InterceptorAboveMapErrorsController.serialized'),
     });
   });
 
