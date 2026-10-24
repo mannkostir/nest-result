@@ -1,14 +1,13 @@
-import type { Type } from '@nestjs/common';
-import { ApiResponse, type SchemaObject } from '@nestjs/swagger';
+import { ApiExtraModels, ApiResponse } from '@nestjs/swagger';
 import type { FailWhen, FirstFailure } from '../core/checks.js';
 import type { UsedDefaultKeys } from '../core/coverage.js';
 import type { ErrorDefaults } from '../core/error-defaults.js';
 import type { AnyErrorMap, ErrorMapCheck } from '../core/error-map.js';
 import { errorMappingOf, type ErrorMapping } from '../core/error-mapping.js';
-import { statusOf } from '../core/error-status.js';
 import type { ErrorOfReturn, ResultReturningMethod } from '../core/result-source.js';
 import type { FamilyOf } from '../core/tags.js';
 import { applyErrorMap } from '../http/apply-error-map.js';
+import { errorResponsesOf, type ErrorSchemas } from './error-responses.js';
 
 export type MissingDefaultUses<K> = { readonly __missingDefaultUses: K };
 
@@ -39,10 +38,6 @@ type DocumentationCheck<E, M, D, U, Fam> = FirstFailure<
     unknown extends ErrorMapCheck<E, M, D> ? FamiliesCheck<E, M, D, Fam> : unknown,
   ]
 >;
-
-export type ErrorBodySchema = Type<unknown> | SchemaObject;
-
-export type ErrorSchemas<K extends string> = { readonly [P in K]?: ErrorBodySchema };
 
 export type DocumentedErrors<Fam extends string, K extends string> = {
   readonly families?: readonly Fam[];
@@ -91,23 +86,16 @@ function documentWith(
   documented: AnyErrorMap,
   documentation: DocumentedErrors<string, string>,
 ): Decorate {
+  const { responses, models } = errorResponsesOf(documented, documentation.families ?? [], documentation.schemas ?? {});
   return (target, key, descriptor) => {
     applyErrorMap(mapping, target, key, descriptor);
-    keysByStatus(documented).forEach((keys, status) =>
-      ApiResponse({ status, description: keys.join(', ') })(target, key, descriptor),
-    );
+    responses.forEach((response) => ApiResponse({ ...response })(target, key, descriptor));
+    if (models.length > 0) ApiExtraModels(...models)(target, key, descriptor);
   };
 }
 
 function pickKeys(map: AnyErrorMap, keys: readonly string[]): AnyErrorMap {
   return Object.fromEntries(Object.entries(map).filter(([key]) => keys.includes(key)));
-}
-
-function keysByStatus(map: AnyErrorMap): ReadonlyMap<number, readonly string[]> {
-  return Object.entries(map).reduce((groups, [key, spec]) => {
-    const status = statusOf(spec);
-    return new Map(groups).set(status, [...(groups.get(status) ?? []), key]);
-  }, new Map<number, readonly string[]>());
 }
 
 export const MapErrors = Object.assign(documentedMapErrors, { withDefaults });
