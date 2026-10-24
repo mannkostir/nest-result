@@ -5,9 +5,22 @@ declare const errorDefaultsBrand: unique symbol;
 
 export type ErrorDefaults<D> = Readonly<D> & { readonly [errorDefaultsBrand]: true };
 
+export type ErrorBodyFormat = 'plain' | 'problem-details';
+
+export type ErrorDefaultsOptions = { readonly body?: 'problem-details' };
+
+const bodyFormatKey = Symbol('bodyFormat');
+
 export function errorDefaults<const D extends AnyErrorMap>(
   defaults: D & ([OutOfRangeStatuses<D>] extends [never] ? unknown : ErrorStatusOutOfRange<OutOfRangeStatuses<D>>),
+  options: ErrorDefaultsOptions = {},
 ): ErrorDefaults<D> {
   assertErrorStatuses(defaults);
-  return Object.freeze({ ...defaults }) as unknown as ErrorDefaults<D>;
+  const copy = Object.defineProperty({ ...defaults }, bodyFormatKey, { value: options.body ?? 'plain' });
+  return Object.freeze(copy) as unknown as ErrorDefaults<D>;
+}
+
+export function bodyFormatOf(defaults: object): ErrorBodyFormat {
+  const format: unknown = (defaults as { readonly [bodyFormatKey]?: unknown })[bodyFormatKey];
+  return format === 'problem-details' ? 'problem-details' : 'plain';
 }
