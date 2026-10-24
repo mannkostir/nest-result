@@ -170,7 +170,7 @@ Every status-only entry of a route using these defaults, route keys included, th
 
 `title` is the IANA reason phrase of the status; an unregistered code takes the phrase of its class's x00 code. `instance` is the request path without the query string. Payload fields are never included. This applies through `MapErrors.withDefaults`, the Swagger `MapErrors.withDefaults` and `toHttp(source, map, defaults)`; `MapErrors(map)` and `toHttp` without defaults keep the default body.
 
-The interceptor sends the body as `application/problem+json`. It sets that header when it maps the Err, so an exception filter that rewrites the body should also set its own content type. `toHttp` cannot set headers: its problem body, without `instance`, goes out as `application/json`. Custom `body` functions are sent as-is, as `application/json`.
+The interceptor sends the body as `application/problem+json`. On Nest 11 with Express, Nest's exception reply resets that type: the problem body goes out as `application/json` and Nest logs a warning. Nest 12, and Fastify on either version, keep it. The interceptor sets that header when it maps the Err, so an exception filter that rewrites the body should also set its own content type. `toHttp` cannot set headers: its problem body, without `instance`, goes out as `application/json`. Custom `body` functions are sent as-is, as `application/json`.
 
 ### Statuses
 

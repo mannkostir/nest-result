@@ -30,6 +30,7 @@ import {
 import { createApp, platforms } from '../support/create-app.js';
 import { AccessDenied, DealNotFound, ProjectArchived, ProjectNotFound, TaskNotFound } from '../support/errors.js';
 import { ExceptionRecorder, recordingProviders } from '../support/exception-recorder.js';
+import { problemDetailsMediaType } from '../support/nest-version.js';
 
 class DealView {
   constructor(
@@ -410,9 +411,9 @@ describe.each(platforms)('MapErrors with problem details defaults on %s', (platf
     });
   });
 
-  it('sends the problem details body as application/problem+json', async () => {
+  it('sends the problem details body as application/problem+json where Nest keeps that type', async () => {
     const response = await (await start()).get('/problems/books/missing');
-    expect(response.headers['content-type']).toMatch(/^application\/problem\+json/);
+    expect(response.headers['content-type']?.split(';')[0]).toBe(problemDetailsMediaType(platform));
   });
 
   it('leaves the query string out of the instance', async () => {

@@ -13,6 +13,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { errorDefaults } from '../../src/index.js';
 import { MapErrors } from '../../src/swagger/index.js';
 import { createApp } from '../support/create-app.js';
+import { problemDetailsMediaType } from '../support/nest-version.js';
 import { AccessDenied, DealNotFound, ProjectArchived, ProjectNotFound, TaskNotFound, Unavailable } from '../support/errors.js';
 
 @Controller('deals')
@@ -451,8 +452,8 @@ describe('swagger MapErrors', () => {
     ]);
   });
 
-  it('sends a problem details Err as application/problem+json', async () => {
+  it('sends a problem details Err as application/problem+json where Nest keeps that type', async () => {
     const response = await request(app.getHttpServer()).get('/problems/deals/x');
-    expect(response.headers['content-type']).toMatch(/^application\/problem\+json/);
+    expect(response.headers['content-type']?.split(';')[0]).toBe(problemDetailsMediaType('express'));
   });
 });
