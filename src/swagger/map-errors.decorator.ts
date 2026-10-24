@@ -86,7 +86,12 @@ function documentWith(
   documented: AnyErrorMap,
   documentation: DocumentedErrors<string, string>,
 ): Decorate {
-  const { responses, models } = errorResponsesOf(documented, documentation.families ?? [], documentation.schemas ?? {});
+  const { responses, models } = errorResponsesOf(
+    documented,
+    documentation.families ?? [],
+    documentation.schemas ?? {},
+    mapping.bodyFormat,
+  );
   return (target, key, descriptor) => {
     applyErrorMap(mapping, target, key, descriptor);
     responses.forEach((response) => ApiResponse({ ...response })(target, key, descriptor));

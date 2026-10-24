@@ -30,6 +30,7 @@ import {
 import { createApp, platforms } from '../support/create-app.js';
 import { AccessDenied, DealNotFound, ProjectArchived, ProjectNotFound, TaskNotFound } from '../support/errors.js';
 import { ExceptionRecorder, recordingProviders } from '../support/exception-recorder.js';
+import { problemDetailsMediaType } from '../support/nest-version.js';
 
 class DealView {
   constructor(
@@ -154,6 +155,35 @@ class ShelvesController {
   }
 }
 
+class BookNotFound extends TaggedError('BookNotFound', { family: 'NotFound' })<{ message: string }> {}
+
+const problemDefaults = errorDefaults(
+  {
+    NotFound: 404,
+    Archived: { status: 410, body: (error: { readonly _tag: string }) => ({ gone: error._tag }) },
+  },
+  { body: 'problem-details' },
+);
+
+const MapProblemErrors = MapErrors.withDefaults(problemDefaults);
+
+@Controller('problems')
+class ProblemsController {
+  @Get('books/:id')
+  @MapProblemErrors({ AccessDenied: 403 })
+  findBook(@Param('id') id: string): ResultAsync<{ id: string }, BookNotFound | AccessDenied> {
+    if (id === 'missing') return errAsync(new BookNotFound({ message: 'Book not found' }));
+    if (id === 'forbidden') return errAsync(new AccessDenied());
+    return okAsync({ id });
+  }
+
+  @Get('shelves')
+  @MapProblemErrors({})
+  findShelf(): ResultAsync<number, ShelfGone> {
+    return errAsync(new ShelfGone());
+  }
+}
+
 @Catch(HttpException)
 class WrappingFilter implements ExceptionFilter {
   constructor(@Inject(HttpAdapterHost) private readonly adapterHost: HttpAdapterHost) {}
@@ -191,6 +221,11 @@ describe.each(platforms)('MapErrors on %s', (platform) => {
       status: 404,
       body: { statusCode: 404, code: 'DealNotFound', message: 'Deal not found' },
     });
+  });
+
+  it('sends the default body as application/json', async () => {
+    const response = await (await start()).get('/deals/async/missing');
+    expect(response.headers['content-type']).toMatch(/^application\/json/);
   });
 
   it('falls back to the tag as message for a payload-less error', async () => {
@@ -341,5 +376,76 @@ describe.each(platforms)('MapErrors with shared defaults on %s', (platform) => {
   it('uses a default custom body as the whole body', async () => {
     const response = await (await start()).get('/shelves');
     expect({ status: response.status, body: response.body }).toEqual({ status: 410, body: { gone: 'ShelfGone' } });
+  });
+
+  it('sends a shared default body as application/json', async () => {
+    const response = await (await start()).get('/projects/defaults/project');
+    expect(response.headers['content-type']).toMatch(/^application\/json/);
+  });
+});
+
+describe.each(platforms)('MapErrors with problem details defaults on %s', (platform) => {
+  let app: INestApplication;
+
+  afterEach(async () => {
+    await app.close();
+  });
+
+  const start = async () => {
+    app = await createApp(platform, { imports: [ResultModule.forRoot()], controllers: [ProblemsController] });
+    return request(app.getHttpServer());
+  };
+
+  it('maps an error through a problem default with the problem details body', async () => {
+    const response = await (await start()).get('/problems/books/missing');
+    expect({ status: response.status, body: response.body }).toStrictEqual({
+      status: 404,
+      body: {
+        type: 'about:blank',
+        title: 'Not Found',
+        status: 404,
+        detail: 'Book not found',
+        code: 'BookNotFound',
+        instance: '/problems/books/missing',
+      },
+    });
+  });
+
+  it('sends the problem details body as application/problem+json where Nest keeps that type', async () => {
+    const response = await (await start()).get('/problems/books/missing');
+    expect(response.headers['content-type']?.split(';')[0]).toBe(problemDetailsMediaType(platform));
+  });
+
+  it('leaves the query string out of the instance', async () => {
+    const response = await (await start()).get('/problems/books/missing?token=x');
+    expect(response.body.instance).toBe('/problems/books/missing');
+  });
+
+  it('gives a route number key the problem details body', async () => {
+    const response = await (await start()).get('/problems/books/forbidden');
+    expect({ status: response.status, body: response.body }).toStrictEqual({
+      status: 403,
+      body: {
+        type: 'about:blank',
+        title: 'Forbidden',
+        status: 403,
+        detail: 'AccessDenied',
+        code: 'AccessDenied',
+        instance: '/problems/books/forbidden',
+      },
+    });
+  });
+
+  it('sends a custom body under problem defaults as-is', async () => {
+    const response = await (await start()).get('/problems/shelves');
+    expect({ status: response.status, body: response.body }).toStrictEqual({
+      status: 410,
+      body: { gone: 'ShelfGone' },
+    });
+  });
+
+  it('sends a custom body under problem defaults as application/json', async () => {
+    const response = await (await start()).get('/problems/shelves');
+    expect(response.headers['content-type']).toMatch(/^application\/json/);
   });
 });

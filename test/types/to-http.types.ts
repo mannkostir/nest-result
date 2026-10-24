@@ -105,6 +105,14 @@ toHttp(family, {}, domainDefaults);
 // @ts-expect-error
 errorDefaults({ NotFound: 302 });
 
+const problemDefaults = errorDefaults({ NotFound: 404, Conflict: 409 }, { body: 'problem-details' });
+
+expectTypeOf(problemDefaults).toEqualTypeOf(domainDefaults);
+expectTypeOf(toHttp(family, { AccessDenied: 403 }, problemDefaults)).toEqualTypeOf<Promise<number>>();
+
+// @ts-expect-error
+errorDefaults({ NotFound: 404 }, { body: 'xml' });
+
 const completeSatisfiedMap = { NotFound: 404, AccessDenied: 403 } as const satisfies ErrorMap<
   TaskNotFound | ProjectNotFound | AccessDenied
 >;

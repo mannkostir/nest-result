@@ -13,6 +13,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { errorDefaults } from '../../src/index.js';
 import { MapErrors } from '../../src/swagger/index.js';
 import { createApp } from '../support/create-app.js';
+import { problemDetailsMediaType } from '../support/nest-version.js';
 import { AccessDenied, DealNotFound, ProjectArchived, ProjectNotFound, TaskNotFound, Unavailable } from '../support/errors.js';
 
 @Controller('deals')
@@ -110,7 +111,59 @@ class SummariesController {
   }
 }
 
-const controllers = [DealsController, ProjectsController, PaymentsController, SummariesController];
+const DocumentedProblemErrors = MapErrors.withDefaults(
+  errorDefaults({ NotFound: 404, Conflict: 409 }, { body: 'problem-details' }),
+);
+
+@Controller('problems')
+class ProblemsController {
+  @Get('deals/:id')
+  @DocumentedProblemErrors({ DealNotFound: 404, AccessDenied: 404 }, { uses: [] })
+  findDeal(@Param('id') id: string): ResultAsync<{ id: string }, DealNotFound | AccessDenied> {
+    return id === 'x' ? errAsync(new AccessDenied()) : okAsync({ id });
+  }
+
+  @Get('projects/:id')
+  @DocumentedProblemErrors({ ProjectArchived: 410 }, { uses: ['NotFound'], families: ['NotFound'] })
+  findProject(@Param('id') id: string): ResultAsync<{ id: string }, ProjectError> {
+    return okAsync({ id });
+  }
+
+  @Get('mixed')
+  @DocumentedProblemErrors(
+    { AccessDenied: 503, Unavailable: { status: 503, body: retryBody } },
+    { uses: [], schemas: { Unavailable: RetryBody } },
+  )
+  mixed(): ResultAsync<{ id: string }, AccessDenied | Unavailable> {
+    return okAsync({ id: 'p' });
+  }
+
+  @Get('replaced')
+  @DocumentedProblemErrors({ AccessDenied: 403 }, { uses: [], schemas: { AccessDenied: retrySchema } })
+  replaced(): ResultAsync<{ id: string }, AccessDenied> {
+    return okAsync({ id: 'p' });
+  }
+
+  @Get('combined')
+  @DocumentedProblemErrors(
+    { DealNotFound: 404, AccessDenied: 404 },
+    { uses: [], schemas: { AccessDenied: retrySchema } },
+  )
+  combined(): ResultAsync<{ id: string }, DealNotFound | AccessDenied> {
+    return okAsync({ id: 'p' });
+  }
+
+  @Get('custom')
+  @DocumentedProblemErrors(
+    { Unavailable: { status: 503, body: retryBody } },
+    { uses: [], schemas: { Unavailable: RetryBody } },
+  )
+  custom(): ResultAsync<{ id: string }, Unavailable> {
+    return okAsync({ id: 'p' });
+  }
+}
+
+const controllers = [DealsController, ProjectsController, PaymentsController, SummariesController, ProblemsController];
 
 const documentOf = (app: INestApplication): OpenAPIObject =>
   SwaggerModule.createDocument(app, new DocumentBuilder().build());
@@ -300,5 +353,107 @@ describe('swagger MapErrors', () => {
   it('maps an Err through the defaults at runtime', async () => {
     const response = await request(app.getHttpServer()).get('/projects/x');
     expect({ status: response.status, code: response.body.code }).toEqual({ status: 404, code: 'TaskNotFound' });
+  });
+
+  it('documents the problem details body of a default-body status under application/problem+json', () => {
+    expect(document.paths['/problems/deals/{id}']?.get?.responses['404']).toHaveProperty(
+      ['content', 'application/problem+json', 'schema'],
+      {
+        type: 'object',
+        required: ['type', 'title', 'status', 'detail', 'code'],
+        properties: {
+          type: { type: 'string', enum: ['about:blank'] },
+          title: { type: 'string', enum: ['Not Found'] },
+          status: { type: 'integer', enum: [404] },
+          detail: { type: 'string' },
+          code: { type: 'string', enum: ['DealNotFound', 'AccessDenied'] },
+          instance: { type: 'string', format: 'uri-reference' },
+        },
+      },
+    );
+  });
+
+  it('documents a problem details status without an application/json body', () => {
+    expect(document.paths['/problems/deals/{id}']?.get?.responses['404']).not.toHaveProperty([
+      'content',
+      'application/json',
+    ]);
+  });
+
+  it('documents the reason phrase of the status as the problem title', () => {
+    expect(document.paths['/problems/projects/{id}']?.get?.responses['410']).toHaveProperty(
+      ['content', 'application/problem+json', 'schema', 'properties', 'title'],
+      { type: 'string', enum: ['Gone'] },
+    );
+  });
+
+  it('documents a problem details example per tag', () => {
+    expect(document.paths['/problems/deals/{id}']?.get?.responses['404']).toHaveProperty(
+      ['content', 'application/problem+json', 'examples'],
+      {
+        DealNotFound: {
+          summary: 'DealNotFound',
+          value: { type: 'about:blank', title: 'Not Found', status: 404, detail: 'DealNotFound', code: 'DealNotFound' },
+        },
+        AccessDenied: {
+          summary: 'AccessDenied',
+          value: { type: 'about:blank', title: 'Not Found', status: 404, detail: 'AccessDenied', code: 'AccessDenied' },
+        },
+      },
+    );
+  });
+
+  it('documents the problem code of a status with a listed family as a plain string', () => {
+    expect(document.paths['/problems/projects/{id}']?.get?.responses['404']).toHaveProperty(
+      ['content', 'application/problem+json', 'schema', 'properties', 'code'],
+      { type: 'string' },
+    );
+  });
+
+  it('documents a status mixing problem details and a custom body under both media types', () => {
+    expect(document.paths['/problems/mixed']?.get?.responses['503']).toMatchObject({
+      content: {
+        'application/problem+json': {
+          schema: { properties: { status: { enum: [503] }, code: { enum: ['AccessDenied'] } } },
+        },
+        'application/json': { schema: { $ref: '#/components/schemas/RetryBody' } },
+      },
+    });
+  });
+
+  it('documents a schema given for a status-only problem details key under application/problem+json', () => {
+    expect(document.paths['/problems/replaced']?.get?.responses['403']).toEqual({
+      description: 'AccessDenied',
+      content: { 'application/problem+json': { schema: retrySchema } },
+    });
+  });
+
+  it('documents a schema given for a status-only key beside the problem details schema as an alternative', () => {
+    expect(document.paths['/problems/combined']?.get?.responses['404']).toMatchObject({
+      content: {
+        'application/problem+json': {
+          schema: { oneOf: [{ properties: { code: { enum: ['DealNotFound'] } } }, retrySchema] },
+        },
+      },
+    });
+  });
+
+  it('documents a schema given for a custom-body key of problem details defaults under application/json', () => {
+    expect(document.paths['/problems/custom']?.get?.responses['503']).toEqual({
+      description: 'Unavailable',
+      content: { 'application/json': { schema: { $ref: '#/components/schemas/RetryBody' } } },
+    });
+  });
+
+  it('documents plain defaults without an application/problem+json body', () => {
+    expect(document.paths['/projects/{id}']?.get?.responses['404']).not.toHaveProperty([
+      'content',
+      'application/problem+json',
+    ]);
+  });
+
+  it('sends a problem details Err as application/problem+json where Nest keeps that type', async () => {
+    const response = await request(app.getHttpServer()).get('/problems/deals/x');
+    expect(response.headers['content-type']?.split(';')[0]).toBe(problemDetailsMediaType('express'));
   });
 });

@@ -1,11 +1,6 @@
 import { execFileSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-
-const installedNestMajor = Number(
-  JSON.parse(readFileSync(new URL('../../node_modules/@nestjs/common/package.json', import.meta.url), 'utf8'))
-    .version.split('.')[0],
-);
+import { installedNestMajor } from '../support/nest-version.js';
 
 function run(args: readonly string[]): string {
   return execFileSync(process.execPath, args, { encoding: 'utf8' }).trim();

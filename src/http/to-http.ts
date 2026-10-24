@@ -11,6 +11,11 @@ export async function toHttp<T, E, const S, D = {}>(
 ): Promise<T> {
   const mapping = errorMappingOf(map, defaults);
   const result = await source;
-  if (result.isErr()) throw exceptionFor(result.error, mapping);
+  if (result.isErr()) {
+    throw exceptionFor(result.error, mapping).match(
+      ({ exception }) => exception,
+      (libraryError) => libraryError,
+    );
+  }
   return result.value;
 }
