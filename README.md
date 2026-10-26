@@ -192,6 +192,8 @@ import { MapErrors } from 'nest-result/swagger';
 
 Same decorator, plus one `@ApiResponse` per mapped status, listing the tags that share it, with a response schema. Requires `@nestjs/swagger`.
 
+It also documents the success status `@nestjs/swagger` would otherwise infer: the `@HttpCode` value, 201 for `POST`, or 200, without a schema. A route that declares its own 1xx, 2xx or 3xx response, such as `@ApiOkResponse({ type: DealDto })`, on the method or on its controller, keeps it and gets no inferred status. Decorator order does not matter. A method inherited from a base class sees only that class and its ancestors, so a success response declared on a subclass controller does not suppress the inferred status, and one at the inferred status is overwritten; declare it on the method instead.
+
 The default body is documented as `statusCode`, `code` and `message`, where `code` is an enum of the tags at that status that use the default body and have no `schemas` entry, with one example per tag.
 
 With problem details defaults, every status-only entry of the route is documented under `application/problem+json`: as `type`, `title`, `status`, `detail`, `code` and an optional `instance`, with one example per tag, or as its `schemas` entry. Custom bodies stay under `application/json`, so a status with both lists both media types.
