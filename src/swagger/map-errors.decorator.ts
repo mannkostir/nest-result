@@ -8,6 +8,7 @@ import type { ErrorOfReturn, ResultReturningMethod } from '../core/result-source
 import type { FamilyOf } from '../core/tags.js';
 import { applyErrorMap } from '../http/apply-error-map.js';
 import { errorResponsesOf, type ErrorSchemas } from './error-responses.js';
+import { documentImplicitSuccessOnceDecorated } from './implicit-success.js';
 
 export type MissingDefaultUses<K> = { readonly __missingDefaultUses: K };
 
@@ -96,6 +97,7 @@ function documentWith(
     applyErrorMap(mapping, target, key, descriptor);
     responses.forEach((response) => ApiResponse({ ...response })(target, key, descriptor));
     if (models.length > 0) ApiExtraModels(...models)(target, key, descriptor);
+    documentImplicitSuccessOnceDecorated(target, key);
   };
 }
 

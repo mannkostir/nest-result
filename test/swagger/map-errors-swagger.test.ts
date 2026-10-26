@@ -1,17 +1,22 @@
-import { Controller, Get, type INestApplication, Param } from '@nestjs/common';
+import { Controller, Get, HttpCode, type INestApplication, Param, Post } from '@nestjs/common';
 import {
+  ApiDefaultResponse,
+  ApiNoContentResponse,
   ApiNotFoundResponse,
+  ApiOkResponse,
+  ApiResponse,
   ApiProperty,
   DocumentBuilder,
   type OpenAPIObject,
   type SchemaObject,
   SwaggerModule,
 } from '@nestjs/swagger';
-import { errAsync, okAsync, type ResultAsync } from 'neverthrow';
+import { errAsync, ok, okAsync, type Result, type ResultAsync } from 'neverthrow';
 import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { errorDefaults } from '../../src/index.js';
 import { MapErrors } from '../../src/swagger/index.js';
+import { TransactionalResult } from '../../src/transactional/index.js';
 import { createApp } from '../support/create-app.js';
 import { problemDetailsMediaType } from '../support/nest-version.js';
 import { AccessDenied, DealNotFound, ProjectArchived, ProjectNotFound, TaskNotFound, Unavailable } from '../support/errors.js';
@@ -111,6 +116,137 @@ class SummariesController {
   }
 }
 
+@Controller('outcomes')
+class OutcomesController {
+  @Get('read')
+  @MapErrors({ DealNotFound: 404 })
+  read(): ResultAsync<{ id: string }, DealNotFound> {
+    return okAsync({ id: 'o' });
+  }
+
+  @MapErrors({ DealNotFound: 404 })
+  @Get('read-below')
+  readBelow(): ResultAsync<{ id: string }, DealNotFound> {
+    return okAsync({ id: 'o' });
+  }
+
+  @Post('create')
+  @MapErrors({ DealNotFound: 404 })
+  create(): ResultAsync<{ id: string }, DealNotFound> {
+    return okAsync({ id: 'o' });
+  }
+
+  @MapErrors({ DealNotFound: 404 })
+  @Post('create-below')
+  createBelow(): ResultAsync<{ id: string }, DealNotFound> {
+    return okAsync({ id: 'o' });
+  }
+
+  @Post('accept')
+  @HttpCode(202)
+  @MapErrors({ DealNotFound: 404 })
+  accept(): ResultAsync<{ id: string }, DealNotFound> {
+    return okAsync({ id: 'o' });
+  }
+
+  @MapErrors({ DealNotFound: 404 })
+  @Post('accept-below')
+  @HttpCode(202)
+  acceptBelow(): ResultAsync<{ id: string }, DealNotFound> {
+    return okAsync({ id: 'o' });
+  }
+
+  @Get('summary')
+  @ApiOkResponse({ type: DealSummary })
+  @MapErrors({ DealNotFound: 404 })
+  summary(): ResultAsync<{ id: string }, DealNotFound> {
+    return okAsync({ id: 'o' });
+  }
+
+  @Get('summary-below')
+  @MapErrors({ DealNotFound: 404 })
+  @ApiOkResponse({ type: DealSummary })
+  summaryBelow(): ResultAsync<{ id: string }, DealNotFound> {
+    return okAsync({ id: 'o' });
+  }
+
+  @Get('empty')
+  @ApiNoContentResponse()
+  @MapErrors({ DealNotFound: 404 })
+  empty(): ResultAsync<undefined, DealNotFound> {
+    return okAsync(undefined);
+  }
+
+  @Get('redirect')
+  @ApiResponse({ status: 302 })
+  @MapErrors({ DealNotFound: 404 })
+  redirect(): ResultAsync<undefined, DealNotFound> {
+    return okAsync(undefined);
+  }
+
+  @Get('fallback')
+  @ApiDefaultResponse()
+  @MapErrors({ DealNotFound: 404 })
+  fallback(): ResultAsync<{ id: string }, DealNotFound> {
+    return okAsync({ id: 'o' });
+  }
+
+  @Get('transactional')
+  @TransactionalResult()
+  @MapErrors({ DealNotFound: 404 })
+  async transactional(): Promise<Result<{ id: string }, DealNotFound>> {
+    return ok({ id: 'o' });
+  }
+}
+
+@ApiOkResponse({ type: DealSummary })
+@Controller('declared-outcomes')
+class DeclaredOutcomesController {
+  @Get('read')
+  @MapErrors({ DealNotFound: 404 })
+  read(): ResultAsync<{ id: string }, DealNotFound> {
+    return okAsync({ id: 'o' });
+  }
+}
+
+@ApiOkResponse({ type: DealSummary })
+class DeclaredOutcomesBase {}
+
+@Controller('inherited-outcomes')
+class InheritedOutcomesController extends DeclaredOutcomesBase {
+  @Get('read')
+  @MapErrors({ DealNotFound: 404 })
+  read(): ResultAsync<{ id: string }, DealNotFound> {
+    return okAsync({ id: 'o' });
+  }
+}
+
+class InheritedOutcomeRoutes {
+  @Get('read')
+  @MapErrors({ DealNotFound: 404 })
+  read(): ResultAsync<{ id: string }, DealNotFound> {
+    return okAsync({ id: 'o' });
+  }
+}
+
+@ApiOkResponse({ type: DealSummary })
+@Controller('subclassed-outcomes')
+class SubclassedOutcomesController extends InheritedOutcomeRoutes {}
+
+@ApiNoContentResponse()
+@Controller('subclassed-empty-outcomes')
+class SubclassedEmptyOutcomesController extends InheritedOutcomeRoutes {}
+
+@ApiNoContentResponse()
+@Controller('empty-outcomes')
+class EmptyOutcomesController {
+  @Get('read')
+  @MapErrors({ DealNotFound: 404 })
+  read(): ResultAsync<undefined, DealNotFound> {
+    return okAsync(undefined);
+  }
+}
+
 const DocumentedProblemErrors = MapErrors.withDefaults(
   errorDefaults({ NotFound: 404, Conflict: 409 }, { body: 'problem-details' }),
 );
@@ -163,7 +299,19 @@ class ProblemsController {
   }
 }
 
-const controllers = [DealsController, ProjectsController, PaymentsController, SummariesController, ProblemsController];
+const controllers = [
+  DealsController,
+  ProjectsController,
+  PaymentsController,
+  SummariesController,
+  ProblemsController,
+  OutcomesController,
+  DeclaredOutcomesController,
+  InheritedOutcomesController,
+  EmptyOutcomesController,
+  SubclassedOutcomesController,
+  SubclassedEmptyOutcomesController,
+];
 
 const documentOf = (app: INestApplication): OpenAPIObject =>
   SwaggerModule.createDocument(app, new DocumentBuilder().build());
@@ -204,11 +352,78 @@ describe('swagger MapErrors', () => {
   });
 
   it('documents only the statuses the route can produce', () => {
-    expect(Object.keys(document.paths['/projects/{id}']?.get?.responses ?? {}).sort()).toEqual(['404', '410']);
+    expect(Object.keys(document.paths['/projects/{id}']?.get?.responses ?? {}).sort()).toEqual(['200', '404', '410']);
   });
 
   it('documents a route override instead of the default it replaces', () => {
-    expect(Object.keys(document.paths['/projects/override/{id}']?.get?.responses ?? {}).sort()).toEqual(['410', '422']);
+    expect(Object.keys(document.paths['/projects/override/{id}']?.get?.responses ?? {}).sort()).toEqual([
+      '200',
+      '410',
+      '422',
+    ]);
+  });
+
+  it.each([
+    ['/outcomes/read', 'get', '200'],
+    ['/outcomes/read-below', 'get', '200'],
+    ['/outcomes/create', 'post', '201'],
+    ['/outcomes/create-below', 'post', '201'],
+    ['/outcomes/accept', 'post', '202'],
+    ['/outcomes/accept-below', 'post', '202'],
+    ['/outcomes/transactional', 'get', '200'],
+  ] as const)('documents the implicit success status of %s', (path, method, status) => {
+    expect(Object.keys(document.paths[path]?.[method]?.responses ?? {}).sort()).toEqual([status, '404']);
+  });
+
+  it.each(['/outcomes/summary', '/outcomes/summary-below'])('keeps a success response declared on %s', (path) => {
+    expect(document.paths[path]?.get?.responses['200']).toHaveProperty(['content', 'application/json', 'schema'], {
+      $ref: '#/components/schemas/DealSummary',
+    });
+  });
+
+  it.each([
+    ['/outcomes/empty', '204'],
+    ['/outcomes/redirect', '302'],
+  ])('adds no implicit success status to %s, which declares another non-error status', (path, status) => {
+    expect(Object.keys(document.paths[path]?.get?.responses ?? {}).sort()).toEqual([status, '404']);
+  });
+
+  it('keeps a success response declared on the controller', () => {
+    expect(document.paths['/declared-outcomes/read']?.get?.responses['200']).toHaveProperty(
+      ['content', 'application/json', 'schema'],
+      { $ref: '#/components/schemas/DealSummary' },
+    );
+  });
+
+  it('keeps a success response declared on a base class of the controller', () => {
+    expect(document.paths['/inherited-outcomes/read']?.get?.responses['200']).toHaveProperty(
+      ['content', 'application/json', 'schema'],
+      { $ref: '#/components/schemas/DealSummary' },
+    );
+  });
+
+  it('documents the implicit success status beside a default response', () => {
+    expect(Object.keys(document.paths['/outcomes/fallback']?.get?.responses ?? {}).sort()).toEqual([
+      '200',
+      '404',
+      'default',
+    ]);
+  });
+
+  it('replaces a success response declared on a subclass controller of an inherited route', () => {
+    expect(document.paths['/subclassed-outcomes/read']?.get?.responses['200']).toEqual({ description: '' });
+  });
+
+  it('documents the implicit success status beside another status declared on a subclass controller of an inherited route', () => {
+    expect(Object.keys(document.paths['/subclassed-empty-outcomes/read']?.get?.responses ?? {}).sort()).toEqual([
+      '200',
+      '204',
+      '404',
+    ]);
+  });
+
+  it('adds no implicit success status under a controller declaring another non-error status', () => {
+    expect(Object.keys(document.paths['/empty-outcomes/read']?.get?.responses ?? {}).sort()).toEqual(['204', '404']);
   });
 
   it('documents the default body of a tag-only status with its tags as the code enum', () => {
