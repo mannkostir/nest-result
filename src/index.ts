@@ -31,6 +31,7 @@ export { MapErrors } from './http/map-errors.decorator.js';
 export type { MapErrorsDecorator, MapErrorsWithDefaults } from './http/map-errors.decorator.js';
 export { ResultInterceptor } from './http/result.interceptor.js';
 export { ProblemDetailsException } from './http/problem-details.exception.js';
+export { ProblemDetailsFilter } from './http/problem-details.filter.js';
 export { ResultModule } from './http/result.module.js';
 export { matchError } from './core/match-error.js';
 export type { ErrorHandlers, MissingErrorHandlers, StaleErrorHandlers } from './core/match-error.js';

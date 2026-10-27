@@ -1,4 +1,5 @@
 import { Controller, Get, HttpCode, type INestApplication, Param, Post } from '@nestjs/common';
+import { APP_FILTER } from '@nestjs/core';
 import {
   ApiDefaultResponse,
   ApiNoContentResponse,
@@ -14,7 +15,7 @@ import {
 import { errAsync, ok, okAsync, type Result, type ResultAsync } from 'neverthrow';
 import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { errorDefaults } from '../../src/index.js';
+import { errorDefaults, ProblemDetailsFilter } from '../../src/index.js';
 import { MapErrors } from '../../src/swagger/index.js';
 import { TransactionalResult } from '../../src/transactional/index.js';
 import { createApp } from '../support/create-app.js';
@@ -343,7 +344,10 @@ describe('swagger MapErrors', () => {
   let document: OpenAPIObject;
 
   beforeAll(async () => {
-    app = await createApp('express', { controllers });
+    app = await createApp('express', {
+      controllers,
+      providers: [{ provide: APP_FILTER, useClass: ProblemDetailsFilter }],
+    });
     document = documentOf(app);
   });
 

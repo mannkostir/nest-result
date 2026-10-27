@@ -22,7 +22,7 @@ import { isResult, isResultAsync, looksLikeForeignResult } from '../core/result-
 import { ERROR_MAP_METADATA } from './error-map-metadata.js';
 import { ProblemDetailsException } from './problem-details.exception.js';
 
-type HttpExchange = { readonly adapter: AbstractHttpAdapter; readonly request: unknown; readonly response: unknown };
+type HttpExchange = { readonly adapter: AbstractHttpAdapter; readonly request: unknown };
 
 @Injectable()
 export class ResultInterceptor implements NestInterceptor {
@@ -50,8 +50,7 @@ export class ResultInterceptor implements NestInterceptor {
   private exchangeOf(context: ExecutionContext): HttpExchange | undefined {
     const adapter = this.adapterHost?.httpAdapter;
     if (context.getType() !== 'http' || adapter === undefined) return undefined;
-    const http = context.switchToHttp();
-    return { adapter, request: http.getRequest(), response: http.getResponse() };
+    return { adapter, request: context.switchToHttp().getRequest() };
   }
 }
 
@@ -76,10 +75,7 @@ function rejectionFor(
   const resolved = resolveHttpError(error, mapping, exchange === undefined ? undefined : requestPathOf(exchange));
   if (resolved.isErr()) return resolved.error;
   const { status, body, problemDetails } = resolved.value;
-  if (problemDetails && exchange !== undefined) {
-    exchange.adapter.setHeader(exchange.response, 'Content-Type', 'application/problem+json');
-    return new ProblemDetailsException(body, status, { cause: error });
-  }
+  if (problemDetails && exchange !== undefined) return new ProblemDetailsException(body, status, { cause: error });
   return new HttpException(body, status, { cause: error });
 }
 
