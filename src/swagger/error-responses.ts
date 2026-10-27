@@ -9,8 +9,8 @@ import {
 } from '@nestjs/swagger';
 import type { ErrorBodyFormat } from '../core/error-defaults.js';
 import type { AnyErrorMap, AnyHttpErrorSpec } from '../core/error-map.js';
-import { statusOf } from '../core/error-status.js';
-import { isCustomBodySpec, problemTypeOf, type ProblemType } from '../core/problem-types.js';
+import { isCustomBodySpec, statusOf } from '../core/error-status.js';
+import { problemTypeOf, type ProblemType } from '../core/problem-types.js';
 
 export type ErrorBodySchema = Type<unknown> | SchemaObject;
 

@@ -2,9 +2,9 @@ import { err, ok, type Result } from 'neverthrow';
 import type { AnyHttpErrorSpec } from './error-map.js';
 import { lookupByIdentity, readErrorIdentity } from './error-lookup.js';
 import type { ErrorMapping } from './error-mapping.js';
-import { statusOf } from './error-status.js';
+import { isCustomBodySpec, statusOf } from './error-status.js';
 import { UnmappedErrorTagError, UntaggedErrorValueError } from './library-errors.js';
-import { isCustomBodySpec, problemTypeOf, type ProblemType } from './problem-types.js';
+import { problemTypeOf, type ProblemType } from './problem-types.js';
 
 export type HttpErrorResponse = { readonly status: number; readonly body: object; readonly problemDetails: boolean };
 
