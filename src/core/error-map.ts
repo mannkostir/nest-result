@@ -1,15 +1,19 @@
 import type { FailWhen, FirstFailure, IdentityChecks } from './checks.js';
 import type { MissingKeys, StaleKeys } from './coverage.js';
 import type { ErrorStatus, ErrorStatusOutOfRange, OutOfRangeStatuses } from './error-status.js';
+import type { ProblemTypeWithoutProblemDetails } from './problem-types.js';
 import type { ErrorKeyOf, MembersWithKey } from './tags.js';
 
 export type HttpErrorSpec<E> =
   | ErrorStatus
-  | { readonly status: ErrorStatus; readonly body: (error: E) => object };
+  | { readonly status: ErrorStatus; readonly body: (error: E) => object }
+  | { readonly status: ErrorStatus; readonly type: string; readonly title?: string };
 
-export type AnyHttpErrorSpec =
-  | number
-  | { readonly status: number; readonly body: (error: never) => object };
+export type AnyCustomBodySpec = { readonly status: number; readonly body: (error: never) => object };
+
+export type AnyProblemTypeSpec = { readonly status: number; readonly type: string; readonly title?: string };
+
+export type AnyHttpErrorSpec = number | AnyCustomBodySpec | AnyProblemTypeSpec;
 
 export type AnyErrorMap = { readonly [key: string]: AnyHttpErrorSpec };
 
@@ -42,6 +46,26 @@ export type ErrorMapCheck<E, M, D = {}> = FirstFailure<
   ]
 >;
 
-export type ErrorMapTemplate<E, S> = {
-  readonly [K in keyof S]: S[K] | { readonly status: S[K]; readonly body: (error: MembersWithKey<E, K>) => object };
+type CustomBodyTemplate<E, K, N> = {
+  readonly status: N;
+  readonly body: (error: MembersWithKey<E, K>) => object;
+  readonly type?: never;
+  readonly title?: never;
 };
+
+type ProblemTypeTemplate<N, T> = { readonly status: N; readonly type: T; readonly title?: string };
+
+export type ErrorMapTemplate<E, S> = {
+  readonly [K in keyof S]:
+    | S[K]
+    | CustomBodyTemplate<E, K, S[K]>
+    | ProblemTypeTemplate<S[K], ProblemTypeWithoutProblemDetails<K>>;
+};
+
+export type ProblemDetailsMapTemplate<E, S> = {
+  readonly [K in keyof S]: S[K] | CustomBodyTemplate<E, K, S[K]> | ProblemTypeTemplate<S[K], string>;
+};
+
+export type ErrorMapTemplateFor<E, S, F> = [F] extends ['problem-details']
+  ? ProblemDetailsMapTemplate<E, S>
+  : ErrorMapTemplate<E, S>;

@@ -190,4 +190,61 @@ describe('resolveHttpError', () => {
       problemDetails: false,
     });
   });
+
+  it('sends the type and title of a problem type entry', () => {
+    const map = { DealNotFound: { status: 404, type: 'https://example.com/problems/deal-not-found', title: 'Deal not found' } };
+    const mapping = errorMappingOf(map, problemDefaults);
+    const resolved = resolveHttpError(new DealNotFound({ dealId: '1', message: 'No deal 1' }), mapping, '/deals/1');
+    expect(resolved._unsafeUnwrap()).toEqual({
+      status: 404,
+      body: {
+        type: 'https://example.com/problems/deal-not-found',
+        title: 'Deal not found',
+        status: 404,
+        detail: 'No deal 1',
+        code: 'DealNotFound',
+        instance: '/deals/1',
+      },
+      problemDetails: true,
+    });
+  });
+
+  it('titles a problem type entry without a title with the reason phrase', () => {
+    const mapping = errorMappingOf({ DealNotFound: { status: 409, type: 'https://example.com/problems/closed' } }, problemDefaults);
+    const resolved = resolveHttpError(new DealNotFound({ dealId: '1', message: 'm' }), mapping);
+    expect(resolved._unsafeUnwrap().body).toHaveProperty('title', 'Conflict');
+  });
+
+  it('sends the type of a problem type entry in the defaults', () => {
+    const defaults = errorDefaults(
+      { NotFound: { status: 404, type: 'https://example.com/problems/not-found' } },
+      { body: 'problem-details' },
+    );
+    const resolved = resolveHttpError(new TaskNotFound({ taskId: '1' }), errorMappingOf({}, defaults));
+    expect(resolved._unsafeUnwrap().body).toHaveProperty('type', 'https://example.com/problems/not-found');
+  });
+
+  it('leaves payload fields out of a problem type body', () => {
+    const mapping = errorMappingOf({ DealNotFound: { status: 404, type: 'https://example.com/problems/deal' } }, problemDefaults);
+    const resolved = resolveHttpError(new DealNotFound({ dealId: 'secret', message: 'm' }), mapping);
+    expect(resolved._unsafeUnwrap().body).not.toHaveProperty('dealId');
+  });
+
+  it('sends the default body for a problem type entry in a plain mapping', () => {
+    const resolved = resolveHttpError(
+      new DealNotFound({ dealId: '1', message: 'm' }),
+      routeOnly({ DealNotFound: { status: 404, type: 'https://example.com/problems/deal', title: 'Deal' } }),
+    );
+    expect(resolved._unsafeUnwrap()).toEqual({
+      status: 404,
+      body: { statusCode: 404, code: 'DealNotFound', message: 'm' },
+      problemDetails: false,
+    });
+  });
+
+  it('sends a custom body as is when its entry also has a problem type', () => {
+    const map = { DealNotFound: { status: 404, type: 'https://example.com/problems/deal', body: () => ({ custom: true }) } };
+    const resolved = resolveHttpError(new DealNotFound({ dealId: '1', message: 'm' }), errorMappingOf(map, problemDefaults));
+    expect(resolved._unsafeUnwrap()).toEqual({ status: 404, body: { custom: true }, problemDetails: false });
+  });
 });

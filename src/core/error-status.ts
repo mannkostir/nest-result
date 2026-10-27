@@ -1,4 +1,4 @@
-import type { AnyErrorMap, AnyHttpErrorSpec } from './error-map.js';
+import type { AnyCustomBodySpec, AnyErrorMap, AnyHttpErrorSpec } from './error-map.js';
 import { InvalidErrorStatusError } from './library-errors.js';
 
 type Digit = '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9';
@@ -21,6 +21,10 @@ export function isErrorStatus(value: unknown): value is ErrorStatus {
 
 export function statusOf(spec: AnyHttpErrorSpec): number {
   return typeof spec === 'number' ? spec : spec.status;
+}
+
+export function isCustomBodySpec(spec: AnyHttpErrorSpec): spec is AnyCustomBodySpec {
+  return typeof spec !== 'number' && 'body' in spec;
 }
 
 export function assertErrorStatuses(map: AnyErrorMap): void {

@@ -1,6 +1,6 @@
 import { expectTypeOf } from 'expect-type';
 import type { ResultAsync } from 'neverthrow';
-import { errorDefaults, TaggedError } from '../../src/index.js';
+import { errorDefaults, TaggedError, type ErrorStatus } from '../../src/index.js';
 import { MapErrors } from '../../src/swagger/index.js';
 
 class TaskNotFound extends TaggedError('TaskNotFound', { family: 'NotFound' })<{ taskId: string }> {}
@@ -13,6 +13,9 @@ class ErrorBody {
 declare const found: ResultAsync<number, TaskNotFound | AccessDenied>;
 
 const DocumentedDomainErrors = MapErrors.withDefaults(errorDefaults({ NotFound: 404, Conflict: 409 }));
+const DocumentedProblemErrors = MapErrors.withDefaults(
+  errorDefaults({ NotFound: { status: 404, type: 'https://example.com/problems/not-found' } }, { body: 'problem-details' }),
+);
 
 export class DocumentedController {
   @MapErrors({ NotFound: 404, AccessDenied: 403 }, { families: ['NotFound'] })
@@ -113,6 +116,26 @@ export class DocumentedController {
   unusedDefaultSchema(): ResultAsync<number, TaskNotFound | AccessDenied> {
     return found;
   }
+
+  @DocumentedProblemErrors(
+    { AccessDenied: { status: 403, type: 'https://example.com/problems/access-denied', title: 'Access denied' } },
+    { uses: ['NotFound'], families: ['NotFound'] },
+  )
+  problemType(): ResultAsync<number, TaskNotFound | AccessDenied> {
+    return found;
+  }
+
+  // @ts-expect-error
+  @MapErrors({ NotFound: 404, AccessDenied: { status: 403, type: 'https://example.com/problems/access-denied' } }, { families: ['NotFound'] })
+  plainProblemType(): ResultAsync<number, TaskNotFound | AccessDenied> {
+    return found;
+  }
+
+  // @ts-expect-error
+  @DocumentedDomainErrors({ AccessDenied: { status: 403, type: 'https://example.com/problems/access-denied' } }, { uses: ['NotFound'], families: ['NotFound'] })
+  plainDefaultsProblemType(): ResultAsync<number, TaskNotFound | AccessDenied> {
+    return found;
+  }
 }
 
 expectTypeOf(
@@ -124,3 +147,11 @@ expectTypeOf(
   // @ts-expect-error
   DocumentedDomainErrors({ AccessDenied: 403 }, { uses: [], schemas: { NotFound: ErrorBody } }),
 ).toEqualTypeOf(DocumentedDomainErrors({ AccessDenied: 403 }, { uses: [] }));
+
+export function documentedMapErrorsOf<M extends Record<string, ErrorStatus>>(map: M) {
+  return MapErrors(map);
+}
+
+export function documentedDomainErrorsOf<M extends Record<string, ErrorStatus>>(map: M) {
+  return DocumentedDomainErrors(map, { uses: [] });
+}

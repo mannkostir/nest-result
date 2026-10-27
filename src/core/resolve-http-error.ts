@@ -2,8 +2,9 @@ import { err, ok, type Result } from 'neverthrow';
 import type { AnyHttpErrorSpec } from './error-map.js';
 import { lookupByIdentity, readErrorIdentity } from './error-lookup.js';
 import type { ErrorMapping } from './error-mapping.js';
+import { isCustomBodySpec, statusOf } from './error-status.js';
 import { UnmappedErrorTagError, UntaggedErrorValueError } from './library-errors.js';
-import { reasonPhraseOf } from './reason-phrases.js';
+import { problemTypeOf, type ProblemType } from './problem-types.js';
 
 export type HttpErrorResponse = { readonly status: number; readonly body: object; readonly problemDetails: boolean };
 
@@ -26,20 +27,28 @@ function toResponse(
   mapping: ErrorMapping,
   instance: string | undefined,
 ): HttpErrorResponse {
-  if (typeof spec !== 'number') return { status: spec.status, body: spec.body(error as never), problemDetails: false };
-  if (mapping.bodyFormat === 'problem-details') {
-    return { status: spec, body: problemBody(spec, tag, error, instance), problemDetails: true };
+  if (isCustomBodySpec(spec)) {
+    return { status: spec.status, body: spec.body(error as never), problemDetails: false };
   }
-  return { status: spec, body: defaultBody(spec, tag, error), problemDetails: false };
+  const status = statusOf(spec);
+  if (mapping.bodyFormat === 'problem-details') {
+    return { status, body: problemBody(problemTypeOf(spec), tag, error, instance), problemDetails: true };
+  }
+  return { status, body: defaultBody(status, tag, error), problemDetails: false };
 }
 
 function defaultBody(status: number, tag: string, error: unknown): object {
   return { statusCode: status, code: tag, message: readMessage(error) ?? tag };
 }
 
-function problemBody(status: number, tag: string, error: unknown, instance: string | undefined): object {
+function problemBody(
+  { status, type, title }: ProblemType,
+  tag: string,
+  error: unknown,
+  instance: string | undefined,
+): object {
   const detail = readMessage(error) ?? tag;
-  const body = { type: 'about:blank', title: reasonPhraseOf(status), status, detail, code: tag };
+  const body = { type, title, status, detail, code: tag };
   return instance === undefined ? body : { ...body, instance };
 }
 

@@ -15,6 +15,7 @@ export type {
   StaleErrorMapKeys,
 } from './core/error-map.js';
 export type { ErrorStatus, ErrorStatusOutOfRange } from './core/error-status.js';
+export type { ProblemTypeWithoutProblemDetails } from './core/problem-types.js';
 export {
   DuplicateNeverthrowError,
   InvalidErrorStatusError,

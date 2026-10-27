@@ -251,6 +251,10 @@ const DocumentedProblemErrors = MapErrors.withDefaults(
   errorDefaults({ NotFound: 404, Conflict: 409 }, { body: 'problem-details' }),
 );
 
+const DocumentedTypedProblemErrors = MapErrors.withDefaults(
+  errorDefaults({ NotFound: { status: 404, type: 'https://example.com/problems/not-found' } }, { body: 'problem-details' }),
+);
+
 @Controller('problems')
 class ProblemsController {
   @Get('deals/:id')
@@ -296,6 +300,24 @@ class ProblemsController {
   )
   custom(): ResultAsync<{ id: string }, Unavailable> {
     return okAsync({ id: 'p' });
+  }
+
+  @Get('typed/:id')
+  @DocumentedProblemErrors(
+    {
+      DealNotFound: { status: 404, type: 'https://example.com/problems/deal-not-found', title: 'Deal not found' },
+      AccessDenied: 404,
+    },
+    { uses: [] },
+  )
+  findTyped(@Param('id') id: string): ResultAsync<{ id: string }, DealNotFound | AccessDenied> {
+    return id === 'x' ? errAsync(new DealNotFound({ dealId: id, message: 'No deal x' })) : okAsync({ id });
+  }
+
+  @Get('typed-projects/:id')
+  @DocumentedTypedProblemErrors({ ProjectArchived: 410 }, { uses: ['NotFound'], families: ['NotFound'] })
+  findTypedProject(@Param('id') id: string): ResultAsync<{ id: string }, ProjectError> {
+    return okAsync({ id });
   }
 }
 
@@ -657,6 +679,66 @@ describe('swagger MapErrors', () => {
     expect(document.paths['/problems/custom']?.get?.responses['503']).toEqual({
       description: 'Unavailable',
       content: { 'application/json': { schema: { $ref: '#/components/schemas/RetryBody' } } },
+    });
+  });
+
+  it('documents the problem types at a status as the type enum', () => {
+    expect(document.paths['/problems/typed/{id}']?.get?.responses['404']).toHaveProperty(
+      ['content', 'application/problem+json', 'schema', 'properties', 'type'],
+      { type: 'string', enum: ['https://example.com/problems/deal-not-found', 'about:blank'] },
+    );
+  });
+
+  it('documents the problem titles at a status as the title enum', () => {
+    expect(document.paths['/problems/typed/{id}']?.get?.responses['404']).toHaveProperty(
+      ['content', 'application/problem+json', 'schema', 'properties', 'title'],
+      { type: 'string', enum: ['Deal not found', 'Not Found'] },
+    );
+  });
+
+  it('documents the type and title of each tag in its problem details example', () => {
+    expect(document.paths['/problems/typed/{id}']?.get?.responses['404']).toHaveProperty(
+      ['content', 'application/problem+json', 'examples'],
+      {
+        DealNotFound: {
+          summary: 'DealNotFound',
+          value: {
+            type: 'https://example.com/problems/deal-not-found',
+            title: 'Deal not found',
+            status: 404,
+            detail: 'DealNotFound',
+            code: 'DealNotFound',
+          },
+        },
+        AccessDenied: {
+          summary: 'AccessDenied',
+          value: { type: 'about:blank', title: 'Not Found', status: 404, detail: 'AccessDenied', code: 'AccessDenied' },
+        },
+      },
+    );
+  });
+
+  it('documents the problem type of a family default and the reason phrase as its title', () => {
+    expect(document.paths['/problems/typed-projects/{id}']?.get?.responses['404']).toMatchObject({
+      content: {
+        'application/problem+json': {
+          schema: {
+            properties: {
+              type: { enum: ['https://example.com/problems/not-found'] },
+              title: { enum: ['Not Found'] },
+            },
+          },
+        },
+      },
+    });
+  });
+
+  it('sends the type and title of a documented problem type entry', async () => {
+    const response = await request(app.getHttpServer()).get('/problems/typed/x');
+    expect(response.body).toMatchObject({
+      type: 'https://example.com/problems/deal-not-found',
+      title: 'Deal not found',
+      detail: 'No deal x',
     });
   });
 

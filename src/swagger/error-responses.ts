@@ -9,8 +9,8 @@ import {
 } from '@nestjs/swagger';
 import type { ErrorBodyFormat } from '../core/error-defaults.js';
 import type { AnyErrorMap, AnyHttpErrorSpec } from '../core/error-map.js';
-import { statusOf } from '../core/error-status.js';
-import { reasonPhraseOf } from '../core/reason-phrases.js';
+import { isCustomBodySpec, statusOf } from '../core/error-status.js';
+import { problemTypeOf, type ProblemType } from '../core/problem-types.js';
 
 export type ErrorBodySchema = Type<unknown> | SchemaObject;
 
@@ -27,7 +27,7 @@ type ErrorResponses = {
   readonly models: readonly Type<unknown>[];
 };
 
-type DefaultBody = { readonly kind: 'default'; readonly key: string };
+type DefaultBody = { readonly kind: 'default'; readonly key: string; readonly problemType: ProblemType };
 
 type GivenBody = { readonly kind: 'given'; readonly schema: ErrorBodySchema; readonly statusOnly: boolean };
 
@@ -77,8 +77,8 @@ function entriesByStatus(map: AnyErrorMap): ReadonlyMap<number, readonly ErrorEn
 
 function bodyOf(key: string, spec: AnyHttpErrorSpec, schemas: ErrorSchemas<string>): KeyBody {
   const schema = Object.hasOwn(schemas, key) ? schemas[key] : undefined;
-  if (schema !== undefined) return { kind: 'given', schema, statusOnly: typeof spec === 'number' };
-  return typeof spec === 'number' ? { kind: 'default', key } : { kind: 'undocumented' };
+  if (schema !== undefined) return { kind: 'given', schema, statusOnly: !isCustomBodySpec(spec) };
+  return isCustomBodySpec(spec) ? { kind: 'undocumented' } : { kind: 'default', key, problemType: problemTypeOf(spec) };
 }
 
 function documentStatus(
@@ -108,15 +108,15 @@ function descriptionOf(keys: readonly string[], families: readonly string[]): st
 function plainContentOf({ status, families, bodies }: StatusBodies): ContentObject {
   const defaultSchema = defaultBodySchema(status, defaultKeysOf(bodies), families);
   const alternatives = distinct(bodies.map((body) => (body.kind === 'default' ? defaultSchema : body.schema)));
-  const examples = examplesOf(exampleTagsOf(bodies, families), (tag) => plainExample(status, tag));
+  const examples = examplesOf(exampleBodiesOf(bodies, families), ({ key }) => plainExample(status, key));
   return { 'application/json': mediaTypeOf(alternatives, examples) };
 }
 
 function problemContentOf({ status, families, bodies }: StatusBodies): ContentObject {
-  const problemSchema = problemBodySchema(status, defaultKeysOf(bodies), families);
+  const problemSchema = problemBodySchema(status, defaultBodiesOf(bodies), families);
   const problems = distinct(bodies.flatMap((body) => problemAlternativesOf(body, problemSchema)));
   const customs = givenSchemasOf(bodies.filter((body) => body.kind === 'given' && !body.statusOnly));
-  const examples = examplesOf(exampleTagsOf(bodies, families), (tag) => problemExample(status, tag));
+  const examples = examplesOf(exampleBodiesOf(bodies, families), problemExample);
   return {
     ...(problems.length > 0 ? { 'application/problem+json': mediaTypeOf(problems, examples) } : {}),
     ...(customs.length > 0 ? { 'application/json': mediaTypeOf(customs, {}) } : {}),
@@ -135,12 +135,16 @@ function mediaTypeOf(alternatives: readonly ErrorBodySchema[], examples: Example
   };
 }
 
-function defaultKeysOf(bodies: readonly DocumentedBody[]): readonly string[] {
-  return bodies.flatMap((body) => (body.kind === 'default' ? [body.key] : []));
+function defaultBodiesOf(bodies: readonly DocumentedBody[]): readonly DefaultBody[] {
+  return bodies.flatMap((body) => (body.kind === 'default' ? [body] : []));
 }
 
-function exampleTagsOf(bodies: readonly DocumentedBody[], families: readonly string[]): readonly string[] {
-  return defaultKeysOf(bodies).filter((key) => !families.includes(key));
+function defaultKeysOf(bodies: readonly DocumentedBody[]): readonly string[] {
+  return defaultBodiesOf(bodies).map(({ key }) => key);
+}
+
+function exampleBodiesOf(bodies: readonly DocumentedBody[], families: readonly string[]): readonly DefaultBody[] {
+  return defaultBodiesOf(bodies).filter(({ key }) => !families.includes(key));
 }
 
 function givenSchemasOf(bodies: readonly DocumentedBody[]): readonly ErrorBodySchema[] {
@@ -167,16 +171,16 @@ function defaultBodySchema(status: number, keys: readonly string[], families: re
   };
 }
 
-function problemBodySchema(status: number, keys: readonly string[], families: readonly string[]): SchemaObject {
+function problemBodySchema(status: number, bodies: readonly DefaultBody[], families: readonly string[]): SchemaObject {
   return {
     type: 'object',
     required: ['type', 'title', 'status', 'detail', 'code'],
     properties: {
-      type: { type: 'string', enum: ['about:blank'] },
-      title: { type: 'string', enum: [reasonPhraseOf(status)] },
+      type: { type: 'string', enum: [...distinct(bodies.map(({ problemType }) => problemType.type))] },
+      title: { type: 'string', enum: [...distinct(bodies.map(({ problemType }) => problemType.title))] },
       status: { type: 'integer', enum: [status] },
       detail: { type: 'string' },
-      code: codeSchemaOf(keys, families),
+      code: codeSchemaOf(bodies.map(({ key }) => key), families),
       instance: { type: 'string', format: 'uri-reference' },
     },
   };
@@ -190,12 +194,12 @@ function plainExample(status: number, tag: string): object {
   return { statusCode: status, code: tag, message: tag };
 }
 
-function problemExample(status: number, tag: string): object {
-  return { type: 'about:blank', title: reasonPhraseOf(status), status, detail: tag, code: tag };
+function problemExample({ key, problemType: { type, title, status } }: DefaultBody): object {
+  return { type, title, status, detail: key, code: key };
 }
 
-function examplesOf(tags: readonly string[], exampleOf: (tag: string) => object): ExamplesObject {
-  return Object.fromEntries(tags.map((tag) => [tag, { summary: tag, value: exampleOf(tag) }]));
+function examplesOf(bodies: readonly DefaultBody[], exampleOf: (body: DefaultBody) => object): ExamplesObject {
+  return Object.fromEntries(bodies.map((body) => [body.key, { summary: body.key, value: exampleOf(body) }]));
 }
 
 function toSchema(body: ErrorBodySchema): SchemaObject | ReferenceObject {

@@ -97,6 +97,24 @@ describe('toHttp', () => {
     });
   });
 
+  it('rejects with the type and title of a problem type entry under problem defaults', async () => {
+    const defaults = errorDefaults({ NotFound: 404 }, { body: 'problem-details' });
+    const thrown = await rejectionOf(
+      toHttp(
+        err(notFound()),
+        { DealNotFound: { status: 404, type: 'https://example.com/problems/deal-not-found', title: 'Deal not found' } },
+        defaults,
+      ),
+    );
+    expect((thrown as HttpException).getResponse()).toStrictEqual({
+      type: 'https://example.com/problems/deal-not-found',
+      title: 'Deal not found',
+      status: 404,
+      detail: 'Deal not found',
+      code: 'DealNotFound',
+    });
+  });
+
   it('rejects with an HttpException instance', async () => {
     await expect(toHttp(err(notFound()), { DealNotFound: 404 })).rejects.toBeInstanceOf(HttpException);
   });

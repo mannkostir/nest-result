@@ -1,13 +1,13 @@
-import type { ErrorDefaults } from '../core/error-defaults.js';
-import type { ErrorMapCheck, ErrorMapTemplate } from '../core/error-map.js';
+import type { ErrorBodyFormat, ErrorDefaults } from '../core/error-defaults.js';
+import type { ErrorMapCheck, ErrorMapTemplateFor } from '../core/error-map.js';
 import { errorMappingOf } from '../core/error-mapping.js';
 import type { ResultSource } from '../core/result-source.js';
 import { exceptionFor } from './exception-for.js';
 
-export async function toHttp<T, E, const S, D = {}>(
+export async function toHttp<T, E, const S, D = {}, F extends ErrorBodyFormat = ErrorBodyFormat>(
   source: ResultSource<T, E>,
-  map: ErrorMapTemplate<E, S> & NoInfer<ErrorMapCheck<E, S, D>>,
-  defaults?: ErrorDefaults<D>,
+  map: ErrorMapTemplateFor<E, S, F> & NoInfer<ErrorMapCheck<E, S, D>>,
+  defaults?: ErrorDefaults<D, F>,
 ): Promise<T> {
   const mapping = errorMappingOf(map, defaults);
   const result = await source;

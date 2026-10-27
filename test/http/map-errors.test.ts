@@ -161,6 +161,7 @@ const problemDefaults = errorDefaults(
   {
     NotFound: 404,
     Archived: { status: 410, body: (error: { readonly _tag: string }) => ({ gone: error._tag }) },
+    ProjectArchived: { status: 409, type: 'https://example.com/problems/project-archived' },
   },
   { body: 'problem-details' },
 );
@@ -181,6 +182,16 @@ class ProblemsController {
   @MapProblemErrors({})
   findShelf(): ResultAsync<number, ShelfGone> {
     return errAsync(new ShelfGone());
+  }
+
+  @Get('deals/:id')
+  @MapProblemErrors({
+    DealNotFound: { status: 404, type: 'https://example.com/problems/deal-not-found', title: 'Deal not found' },
+  })
+  findDeal(@Param('id') id: string): ResultAsync<{ id: string }, DealNotFound | ProjectArchived> {
+    if (id === 'missing') return errAsync(new DealNotFound({ dealId: id, message: 'No deal missing' }));
+    if (id === 'archived') return errAsync(new ProjectArchived());
+    return okAsync({ id });
   }
 }
 
@@ -447,5 +458,40 @@ describe.each(platforms)('MapErrors with problem details defaults on %s', (platf
   it('sends a custom body under problem defaults as application/json', async () => {
     const response = await (await start()).get('/problems/shelves');
     expect(response.headers['content-type']).toMatch(/^application\/json/);
+  });
+
+  it('sends the type and title of a route problem type entry', async () => {
+    const response = await (await start()).get('/problems/deals/missing');
+    expect({ status: response.status, body: response.body }).toStrictEqual({
+      status: 404,
+      body: {
+        type: 'https://example.com/problems/deal-not-found',
+        title: 'Deal not found',
+        status: 404,
+        detail: 'No deal missing',
+        code: 'DealNotFound',
+        instance: '/problems/deals/missing',
+      },
+    });
+  });
+
+  it('sends a route problem type entry as application/problem+json where Nest keeps that type', async () => {
+    const response = await (await start()).get('/problems/deals/missing');
+    expect(response.headers['content-type']?.split(';')[0]).toBe(problemDetailsMediaType(platform));
+  });
+
+  it('titles a default problem type entry without a title with the reason phrase', async () => {
+    const response = await (await start()).get('/problems/deals/archived');
+    expect({ status: response.status, body: response.body }).toStrictEqual({
+      status: 409,
+      body: {
+        type: 'https://example.com/problems/project-archived',
+        title: 'Conflict',
+        status: 409,
+        detail: 'ProjectArchived',
+        code: 'ProjectArchived',
+        instance: '/problems/deals/archived',
+      },
+    });
   });
 });

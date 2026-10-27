@@ -31,6 +31,20 @@ exports[`compiler diagnostics text > matches the recorded diagnostics for every 
 ",
   ],
   [
+    "decorator-problem-type-missing-key",
+    "test/diagnostics/fixtures/decorator-problem-type-missing-key.ts(8,4): error TS1241: Unable to resolve signature of method decorator when called as an expression.
+  Argument of type 'TypedPropertyDescriptor<() => ResultAsync<number, DealNotFound | AccessDenied>>' is not assignable to parameter of type 'TypedPropertyDescriptor<() => ResultAsync<number, DealNotFound | AccessDenied>> & ProblemTypeWithoutProblemDetails<"DealNotFound">'.
+    Property '__problemTypeWithoutProblemDetails' is missing in type 'TypedPropertyDescriptor<() => ResultAsync<number, DealNotFound | AccessDenied>>' but required in type 'ProblemTypeWithoutProblemDetails<"DealNotFound">'.
+",
+  ],
+  [
+    "decorator-problem-type-plain",
+    "test/diagnostics/fixtures/decorator-problem-type-plain.ts(8,4): error TS1241: Unable to resolve signature of method decorator when called as an expression.
+  Argument of type 'TypedPropertyDescriptor<() => ResultAsync<number, DealNotFound | AccessDenied>>' is not assignable to parameter of type 'TypedPropertyDescriptor<() => ResultAsync<number, DealNotFound | AccessDenied>> & ProblemTypeWithoutProblemDetails<"DealNotFound">'.
+    Property '__problemTypeWithoutProblemDetails' is missing in type 'TypedPropertyDescriptor<() => ResultAsync<number, DealNotFound | AccessDenied>>' but required in type 'ProblemTypeWithoutProblemDetails<"DealNotFound">'.
+",
+  ],
+  [
     "decorator-stale-key",
     "test/diagnostics/fixtures/decorator-stale-key.ts(8,4): error TS1241: Unable to resolve signature of method decorator when called as an expression.
   Argument of type 'TypedPropertyDescriptor<() => ResultAsync<number, DealNotFound>>' is not assignable to parameter of type 'TypedPropertyDescriptor<() => ResultAsync<number, DealNotFound>> & StaleErrorMapKeys<"Stale">'.
@@ -49,6 +63,18 @@ exports[`compiler diagnostics text > matches the recorded diagnostics for every 
     "test/diagnostics/fixtures/decorator-untagged.ts(8,4): error TS1241: Unable to resolve signature of method decorator when called as an expression.
   Argument of type 'TypedPropertyDescriptor<() => Result<number, Error | DealNotFound>>' is not assignable to parameter of type 'TypedPropertyDescriptor<() => Result<number, Error | DealNotFound>> & UntaggedErrorsCannotBeMapped<Error>'.
     Property '__untaggedErrorsCannotBeMapped' is missing in type 'TypedPropertyDescriptor<() => Result<number, Error | DealNotFound>>' but required in type 'UntaggedErrorsCannotBeMapped<Error>'.
+",
+  ],
+  [
+    "error-defaults-problem-type-plain",
+    "test/diagnostics/fixtures/error-defaults-problem-type-plain.ts(3,45): error TS2345: Argument of type '{ NotFound: { status: 404; type: "https://example.com/problems/not-found"; }; }' is not assignable to parameter of type '{ readonly NotFound: { readonly status: 404; readonly type: "https://example.com/problems/not-found"; }; } & ProblemTypeWithoutProblemDetails<"NotFound">'.
+  Property '__problemTypeWithoutProblemDetails' is missing in type '{ NotFound: { status: 404; type: "https://example.com/problems/not-found"; }; }' but required in type 'ProblemTypeWithoutProblemDetails<"NotFound">'.
+",
+  ],
+  [
+    "error-defaults-problem-type-status",
+    "test/diagnostics/fixtures/error-defaults-problem-type-status.ts(3,45): error TS2345: Argument of type '{ NotFound: { status: 302; type: "https://example.com/problems/not-found"; }; }' is not assignable to parameter of type '{ readonly NotFound: { readonly status: 302; readonly type: "https://example.com/problems/not-found"; }; } & ProblemTypeWithoutProblemDetails<"NotFound">'.
+  Property '__problemTypeWithoutProblemDetails' is missing in type '{ NotFound: { status: 302; type: "https://example.com/problems/not-found"; }; }' but required in type 'ProblemTypeWithoutProblemDetails<"NotFound">'.
 ",
   ],
   [
@@ -84,6 +110,20 @@ exports[`compiler diagnostics text > matches the recorded diagnostics for every 
 ",
   ],
   [
+    "swagger-problem-type-missing-uses",
+    "test/diagnostics/fixtures/swagger-problem-type-missing-uses.ts(11,4): error TS1241: Unable to resolve signature of method decorator when called as an expression.
+  Argument of type 'TypedPropertyDescriptor<() => ResultAsync<number, DealNotFound | AccessDenied>>' is not assignable to parameter of type 'TypedPropertyDescriptor<() => ResultAsync<number, DealNotFound | AccessDenied>> & ProblemTypeWithoutProblemDetails<"DealNotFound">'.
+    Property '__problemTypeWithoutProblemDetails' is missing in type 'TypedPropertyDescriptor<() => ResultAsync<number, DealNotFound | AccessDenied>>' but required in type 'ProblemTypeWithoutProblemDetails<"DealNotFound">'.
+",
+  ],
+  [
+    "swagger-problem-type-plain",
+    "test/diagnostics/fixtures/swagger-problem-type-plain.ts(11,4): error TS1241: Unable to resolve signature of method decorator when called as an expression.
+  Argument of type 'TypedPropertyDescriptor<() => ResultAsync<number, DealNotFound | AccessDenied>>' is not assignable to parameter of type 'TypedPropertyDescriptor<() => ResultAsync<number, DealNotFound | AccessDenied>> & ProblemTypeWithoutProblemDetails<"DealNotFound">'.
+    Property '__problemTypeWithoutProblemDetails' is missing in type 'TypedPropertyDescriptor<() => ResultAsync<number, DealNotFound | AccessDenied>>' but required in type 'ProblemTypeWithoutProblemDetails<"DealNotFound">'.
+",
+  ],
+  [
     "swagger-shadowed-family",
     "test/diagnostics/fixtures/swagger-shadowed-family.ts(8,4): error TS1241: Unable to resolve signature of method decorator when called as an expression.
   Argument of type 'TypedPropertyDescriptor<() => ResultAsync<number, AccessDenied | TaskNotFound>>' is not assignable to parameter of type 'TypedPropertyDescriptor<() => ResultAsync<number, AccessDenied | TaskNotFound>> & StaleErrorMapKeys<"NotFound">'.
@@ -114,6 +154,16 @@ exports[`compiler diagnostics text > matches the recorded diagnostics for every 
     "to-http-missing-key",
     "test/diagnostics/fixtures/to-http-missing-key.ts(7,39): error TS2345: Argument of type '{ DealNotFound: 404; }' is not assignable to parameter of type 'ErrorMapTemplate<DealNotFound | AccessDenied, { DealNotFound: 404; }> & NoInfer<MissingErrorMapKeys<"AccessDenied">>'.
   Property '__missingErrorMapKeys' is missing in type '{ DealNotFound: 404; }' but required in type 'MissingErrorMapKeys<"AccessDenied">'.
+",
+  ],
+  [
+    "to-http-problem-type-missing-key",
+    "test/diagnostics/fixtures/to-http-problem-type-missing-key.ts(8,32): error TS2322: Type 'string' is not assignable to type 'ProblemTypeWithoutProblemDetails<"DealNotFound">'.
+",
+  ],
+  [
+    "to-http-problem-type-plain",
+    "test/diagnostics/fixtures/to-http-problem-type-plain.ts(8,32): error TS2322: Type 'string' is not assignable to type 'ProblemTypeWithoutProblemDetails<"DealNotFound">'.
 ",
   ],
   [
