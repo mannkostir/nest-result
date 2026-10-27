@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import {
   errorDefaults,
   InvalidErrorStatusError,
+  ProblemDetailsException,
   TaggedError,
   toHttp,
   UnmappedErrorTagError,
@@ -117,6 +118,18 @@ describe('toHttp', () => {
 
   it('rejects with an HttpException instance', async () => {
     await expect(toHttp(err(notFound()), { DealNotFound: 404 })).rejects.toBeInstanceOf(HttpException);
+  });
+
+  it('rejects with an HttpException under problem defaults', async () => {
+    const defaults = errorDefaults({ NotFound: 404 }, { body: 'problem-details' });
+    const thrown = await rejectionOf(toHttp(err(new TaskNotFound()), {}, defaults));
+    expect(thrown).toBeInstanceOf(HttpException);
+  });
+
+  it('rejects with no ProblemDetailsException under problem defaults', async () => {
+    const defaults = errorDefaults({ NotFound: 404 }, { body: 'problem-details' });
+    const thrown = await rejectionOf(toHttp(err(new TaskNotFound()), {}, defaults));
+    expect(thrown).not.toBeInstanceOf(ProblemDetailsException);
   });
 });
 

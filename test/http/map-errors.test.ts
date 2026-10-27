@@ -1,21 +1,27 @@
 import {
   type ArgumentsHost,
+  type CallHandler,
   Catch,
   ClassSerializerInterceptor,
   Controller,
   Delete,
   type ExceptionFilter,
+  type ExecutionContext,
   Get,
   HttpCode,
   HttpException,
   type INestApplication,
   Inject,
+  Injectable,
+  type NestInterceptor,
   Param,
   Post,
+  UseInterceptors,
 } from '@nestjs/common';
 import { APP_FILTER, APP_INTERCEPTOR, HttpAdapterHost } from '@nestjs/core';
 import { Exclude } from 'class-transformer';
 import { err, errAsync, ok, okAsync, type Result, type ResultAsync } from 'neverthrow';
+import { catchError, type Observable, of } from 'rxjs';
 import request from 'supertest';
 import { afterEach, describe, expect, it } from 'vitest';
 import {
@@ -24,6 +30,8 @@ import {
   InvalidErrorStatusError,
   MapErrors,
   MissingErrorMapError,
+  ProblemDetailsException,
+  ProblemDetailsFilter,
   ResultModule,
   TaggedError,
 } from '../../src/index.js';
@@ -192,6 +200,23 @@ class ProblemsController {
     if (id === 'missing') return errAsync(new DealNotFound({ dealId: id, message: 'No deal missing' }));
     if (id === 'archived') return errAsync(new ProjectArchived());
     return okAsync({ id });
+  }
+}
+
+@Injectable()
+class FallbackInterceptor implements NestInterceptor {
+  intercept(_context: ExecutionContext, next: CallHandler): Observable<unknown> {
+    return next.handle().pipe(catchError(() => of({ fallback: true })));
+  }
+}
+
+@Controller('recovered')
+@UseInterceptors(FallbackInterceptor)
+class RecoveredProblemsController {
+  @Get('books')
+  @MapProblemErrors({})
+  findBook(): ResultAsync<{ id: string }, BookNotFound> {
+    return errAsync(new BookNotFound({ message: 'Book not found' }));
   }
 }
 
@@ -395,6 +420,8 @@ describe.each(platforms)('MapErrors with shared defaults on %s', (platform) => {
   });
 });
 
+const problemDetailsFilterProviders = [{ provide: APP_FILTER, useClass: ProblemDetailsFilter }];
+
 describe.each(platforms)('MapErrors with problem details defaults on %s', (platform) => {
   let app: INestApplication;
 
@@ -403,7 +430,11 @@ describe.each(platforms)('MapErrors with problem details defaults on %s', (platf
   });
 
   const start = async () => {
-    app = await createApp(platform, { imports: [ResultModule.forRoot()], controllers: [ProblemsController] });
+    app = await createApp(platform, {
+      imports: [ResultModule.forRoot()],
+      controllers: [ProblemsController],
+      providers: problemDetailsFilterProviders,
+    });
     return request(app.getHttpServer());
   };
 
@@ -493,5 +524,216 @@ describe.each(platforms)('MapErrors with problem details defaults on %s', (platf
         instance: '/problems/deals/archived',
       },
     });
+  });
+});
+
+describe.each(platforms)('MapErrors exceptions under problem details defaults on %s', (platform) => {
+  let app: INestApplication;
+
+  afterEach(async () => {
+    await app.close();
+  });
+
+  const rejectionAt = async (path: string) => {
+    app = await createApp(platform, {
+      imports: [ResultModule.forRoot()],
+      controllers: [ProblemsController, ProjectsController],
+      providers: recordingProviders,
+    });
+    await request(app.getHttpServer()).get(path);
+    return app.get(ExceptionRecorder).last;
+  };
+
+  it('throws a ProblemDetailsException for a problem default', async () => {
+    const rejection = await rejectionAt('/problems/books/missing');
+    expect(rejection).toBeInstanceOf(ProblemDetailsException);
+  });
+
+  it('throws a problem default as an HttpException', async () => {
+    const rejection = await rejectionAt('/problems/books/missing');
+    expect(rejection).toBeInstanceOf(HttpException);
+  });
+
+  it('carries the status, problem details body and cause of a problem default', async () => {
+    const rejection = (await rejectionAt('/problems/books/missing')) as HttpException;
+    expect({ status: rejection.getStatus(), body: rejection.getResponse(), cause: rejection.cause }).toStrictEqual({
+      status: 404,
+      body: {
+        type: 'about:blank',
+        title: 'Not Found',
+        status: 404,
+        detail: 'Book not found',
+        code: 'BookNotFound',
+        instance: '/problems/books/missing',
+      },
+      cause: expect.any(BookNotFound),
+    });
+  });
+
+  it('throws a custom body under problem defaults as an HttpException', async () => {
+    const rejection = await rejectionAt('/problems/shelves');
+    expect(rejection).toBeInstanceOf(HttpException);
+  });
+
+  it('throws a custom body under problem defaults as no ProblemDetailsException', async () => {
+    const rejection = await rejectionAt('/problems/shelves');
+    expect(rejection).not.toBeInstanceOf(ProblemDetailsException);
+  });
+
+  it('throws a plain default as an HttpException', async () => {
+    const rejection = await rejectionAt('/projects/defaults/project');
+    expect(rejection).toBeInstanceOf(HttpException);
+  });
+
+  it('throws a plain default as no ProblemDetailsException', async () => {
+    const rejection = await rejectionAt('/projects/defaults/project');
+    expect(rejection).not.toBeInstanceOf(ProblemDetailsException);
+  });
+});
+
+describe.each(platforms)('a controller-level interceptor recovering a problem details Err on %s', (platform) => {
+  let app: INestApplication;
+
+  afterEach(async () => {
+    await app.close();
+  });
+
+  const start = async () => {
+    app = await createApp(platform, {
+      imports: [ResultModule.forRoot()],
+      controllers: [RecoveredProblemsController],
+      providers: problemDetailsFilterProviders,
+    });
+    return request(app.getHttpServer());
+  };
+
+  it('sends the recovered value', async () => {
+    const response = await (await start()).get('/recovered/books');
+    expect({ status: response.status, body: response.body }).toStrictEqual({ status: 200, body: { fallback: true } });
+  });
+
+  it('sends the recovered value as application/json', async () => {
+    const response = await (await start()).get('/recovered/books');
+    expect(response.headers['content-type']).toMatch(/^application\/json/);
+  });
+});
+
+describe.each(platforms)('a user HttpException filter under problem details defaults on %s', (platform) => {
+  let app: INestApplication;
+
+  afterEach(async () => {
+    await app.close();
+  });
+
+  const start = async () => {
+    app = await createApp(platform, {
+      imports: [ResultModule.forRoot()],
+      controllers: [ProblemsController],
+      providers: [{ provide: APP_FILTER, useClass: WrappingFilter }],
+    });
+    return request(app.getHttpServer());
+  };
+
+  it('sends the filter response', async () => {
+    const response = await (await start()).get('/problems/books/missing');
+    expect({ status: response.status, body: response.body }).toStrictEqual({ status: 404, body: { wrapped: 404 } });
+  });
+
+  it('sends the filter response as application/json', async () => {
+    const response = await (await start()).get('/problems/books/missing');
+    expect(response.headers['content-type']).toMatch(/^application\/json/);
+  });
+});
+
+describe.each(platforms)('a user HttpException filter checked before ProblemDetailsFilter on %s', (platform) => {
+  let app: INestApplication;
+
+  afterEach(async () => {
+    await app.close();
+  });
+
+  const start = async () => {
+    app = await createApp(platform, {
+      imports: [ResultModule.forRoot()],
+      controllers: [ProblemsController],
+      providers: [...problemDetailsFilterProviders, { provide: APP_FILTER, useClass: WrappingFilter }],
+    });
+    return request(app.getHttpServer());
+  };
+
+  it('sends the user filter response', async () => {
+    const response = await (await start()).get('/problems/books/missing');
+    expect({ status: response.status, body: response.body }).toStrictEqual({ status: 404, body: { wrapped: 404 } });
+  });
+
+  it('sends the user filter response as application/json', async () => {
+    const response = await (await start()).get('/problems/books/missing');
+    expect(response.headers['content-type']).toMatch(/^application\/json/);
+  });
+});
+
+describe.each(platforms)('MapErrors with problem details defaults without ProblemDetailsFilter on %s', (platform) => {
+  let app: INestApplication;
+
+  afterEach(async () => {
+    await app.close();
+  });
+
+  const start = async () => {
+    app = await createApp(platform, { imports: [ResultModule.forRoot()], controllers: [ProblemsController] });
+    return request(app.getHttpServer());
+  };
+
+  it('maps an error through a problem default with the problem details body', async () => {
+    const response = await (await start()).get('/problems/books/missing');
+    expect({ status: response.status, body: response.body }).toStrictEqual({
+      status: 404,
+      body: {
+        type: 'about:blank',
+        title: 'Not Found',
+        status: 404,
+        detail: 'Book not found',
+        code: 'BookNotFound',
+        instance: '/problems/books/missing',
+      },
+    });
+  });
+
+  it('sends the problem details body as application/json', async () => {
+    const response = await (await start()).get('/problems/books/missing');
+    expect(response.headers['content-type']).toMatch(/^application\/json/);
+  });
+});
+
+describe.each(platforms)('MapErrors with problem details defaults without ResultModule on %s', (platform) => {
+  let app: INestApplication;
+
+  afterEach(async () => {
+    await app.close();
+  });
+
+  const start = async () => {
+    app = await createApp(platform, { controllers: [ProblemsController] });
+    return request(app.getHttpServer());
+  };
+
+  it('maps an error through a problem default with the problem details body', async () => {
+    const response = await (await start()).get('/problems/books/missing');
+    expect({ status: response.status, body: response.body }).toStrictEqual({
+      status: 404,
+      body: {
+        type: 'about:blank',
+        title: 'Not Found',
+        status: 404,
+        detail: 'Book not found',
+        code: 'BookNotFound',
+        instance: '/problems/books/missing',
+      },
+    });
+  });
+
+  it('sends the problem details body as application/json', async () => {
+    const response = await (await start()).get('/problems/books/missing');
+    expect(response.headers['content-type']).toMatch(/^application\/json/);
   });
 });

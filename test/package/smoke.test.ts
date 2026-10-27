@@ -1,6 +1,6 @@
 import { execFileSync } from 'node:child_process';
 import { describe, expect, it } from 'vitest';
-import { installedNestMajor } from '../support/nest-version.js';
+import { installedNestMajor, problemDetailsMediaType } from '../support/nest-version.js';
 
 function run(args: readonly string[]): string {
   return execFileSync(process.execPath, args, { encoding: 'utf8' }).trim();
@@ -23,6 +23,45 @@ describe('built package', () => {
       "import { createRequire } from 'node:module'; const require = createRequire(import.meta.url); console.log(require('nest-result').UnmappedErrorTagError === (await import('nest-result')).UnmappedErrorTagError)",
     ]);
     expect(output).toBe('true');
+  });
+
+  it.each(['ProblemDetailsException', 'ProblemDetailsFilter'])('shares one %s between require and import', (name) => {
+    const output = run([
+      '--input-type=module',
+      '-e',
+      `import { createRequire } from 'node:module'; const require = createRequire(import.meta.url); const required = require('nest-result').${name}; console.log([typeof required, required === (await import('nest-result')).${name}].join(','))`,
+    ]);
+    expect(output).toBe('function,true');
+  });
+
+  it('sends a problem details Err through ProblemDetailsFilter in a commonjs host', () => {
+    const output = run([
+      '-e',
+      [
+        "require('reflect-metadata');",
+        "const { APP_FILTER, NestFactory } = require('@nestjs/core');",
+        "const { Controller, Get, Module } = require('@nestjs/common');",
+        "const { errAsync } = require('neverthrow');",
+        "const { errorDefaults, MapErrors, ProblemDetailsFilter, ResultModule, TaggedError } = require('nest-result');",
+        "class BookNotFound extends TaggedError('BookNotFound', { family: 'NotFound' }) {}",
+        'class Books { find() { return errAsync(new BookNotFound()); } }',
+        "const descriptor = Object.getOwnPropertyDescriptor(Books.prototype, 'find');",
+        "MapErrors.withDefaults(errorDefaults({ NotFound: 404 }, { body: 'problem-details' }))({})(Books.prototype, 'find', descriptor);",
+        "Get()(Books.prototype, 'find', descriptor);",
+        "Object.defineProperty(Books.prototype, 'find', descriptor);",
+        "Controller('books')(Books);",
+        'class AppModule {}',
+        'Module({ imports: [ResultModule.forRoot()], controllers: [Books], providers: [{ provide: APP_FILTER, useClass: ProblemDetailsFilter }] })(AppModule);',
+        '(async () => {',
+        '  const app = await NestFactory.create(AppModule, { logger: false });',
+        "  await app.listen(0, '127.0.0.1');",
+        '  const response = await fetch(`${await app.getUrl()}/books`);',
+        "  console.log([response.status, response.headers.get('content-type').split(';')[0]].join(','));",
+        '  await app.close();',
+        '})();',
+      ].join('\n'),
+    ]);
+    expect(output).toBe(`404,${problemDetailsMediaType('express')}`);
   });
 
   it('refuses deep imports into dist', () => {
