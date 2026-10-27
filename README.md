@@ -170,7 +170,25 @@ Every status-only entry of a route using these defaults, route keys included, th
 
 `title` is the IANA reason phrase of the status; an unregistered code takes the phrase of its class's x00 code. `instance` is the request path without the query string. Payload fields are never included. This applies through `MapErrors.withDefaults`, the Swagger `MapErrors.withDefaults` and `toHttp(source, map, defaults)`; `MapErrors(map)` and `toHttp` without defaults keep the default body. The format travels with the defaults object: a spread copy, or `errorDefaults` given such a copy, keeps problem details with no way back, and `toEqual` against a plain object sees it as an extra key.
 
-The interceptor sends the body as `application/problem+json`. On Nest 11.2.8 and later 11.x releases with Express, Nest's exception reply resets that type: the problem body goes out as `application/json` and Nest logs a warning. Earlier Nest 11 releases, Nest 12, and Fastify on either version keep it. The interceptor sets that header when it maps the Err, so an exception filter that rewrites the body should also set its own content type. The same holds for an outer interceptor that recovers from the exception, for example with `catchError`: anything that turns the exception into a different response must set its own content type. `toHttp` cannot set headers: its problem body, without `instance`, goes out as `application/json`. Custom `body` functions are sent as-is, as `application/json`.
+The interceptor throws each problem body as a `ProblemDetailsException`, an `HttpException` subclass. To send it as `application/problem+json`, register `ProblemDetailsFilter` in your root module:
+
+```ts
+import { Module } from '@nestjs/common';
+import { APP_FILTER } from '@nestjs/core';
+import { ProblemDetailsFilter, ResultModule } from 'nest-result';
+
+@Module({
+  imports: [ResultModule.forRoot()],
+  providers: [{ provide: APP_FILTER, useClass: ProblemDetailsFilter }],
+})
+export class AppModule {}
+```
+
+or with `app.useGlobalFilters(new ProblemDetailsFilter(app.getHttpAdapter()))`. Without it, the problem body goes out as `application/json`. The filter sets the content type and replies as Nest's default exception handling does; outside HTTP it rethrows the exception unchanged. `ResultModule.forRoot()` does not register it, so you decide where it sits among your own filters.
+
+Nest handles an exception with the first filter that matches it: method and controller filters first, then global filters in reverse registration order. A filter of yours checked before `ProblemDetailsFilter` that catches `HttpException`, or everything, handles the exception and writes its own content type; one that delegates to `BaseExceptionFilter` sends `application/json`. Check `instanceof ProblemDetailsException` there to send `application/problem+json`. A filter of yours checked after it never sees a `ProblemDetailsException`. A response an outer interceptor recovers with `catchError` is not labelled `application/problem+json`.
+
+On Nest 11.2.8 and later 11.x releases with Express, Nest's exception reply resets the type: the problem body goes out as `application/json` and Nest logs a warning. Earlier Nest 11 releases, Nest 12, and Fastify on either version keep it. `toHttp` throws a plain `HttpException`: its problem body, without `instance`, goes out as `application/json`. Custom `body` functions are sent as-is, as `application/json`.
 
 An entry can give its own problem `type` URI and `title`, in the defaults or on a route:
 
@@ -201,7 +219,7 @@ Error statuses must be literal integers from 400 to 599. `{ DealNotFound: 200 }`
 
 ### The safety net: `ResultModule`
 
-`ResultModule.forRoot()` registers a global interceptor. A route that returns a Result without `MapErrors` fails with 500 and a logged `MissingErrorMapError` instead of leaking `{ "value": ... }` to the client. A Result from a second copy of neverthrow in your dependency tree fails the same way with `DuplicateNeverthrowError`.
+`ResultModule.forRoot()` registers a global interceptor. A route that returns a Result without `MapErrors` fails with 500 and a logged `MissingErrorMapError` instead of leaking `{ "value": ... }` to the client. A Result from a second copy of neverthrow in your dependency tree fails the same way with `DuplicateNeverthrowError`. It registers no exception filter: with problem details defaults, register `ProblemDetailsFilter` yourself, as in [Problem details](#problem-details).
 
 ## Swagger
 
@@ -334,6 +352,11 @@ close(id: string): ResultAsync<Deal, DealNotFound | DealClosed> {
 2. Add `ResultModule.forRoot()` to your root module and delete your interceptor.
 3. Add `@MapErrors({...})` to each route that returns a Result; the compiler lists every tag you still need to map.
 4. Remove `HttpException`s from your domain code; map domain errors at the controller instead.
+
+## Migrating from 0.4
+
+- Problem details bodies go out as `application/json` until you register `ProblemDetailsFilter`; see [Problem details](#problem-details). The body is unchanged.
+- The `message` of the exception thrown for a problem details body reads `Problem Details Exception` instead of `Http Exception`.
 
 ## Migrating from 0.3
 
