@@ -172,6 +172,25 @@ Every status-only entry of a route using these defaults, route keys included, th
 
 The interceptor sends the body as `application/problem+json`. On Nest 11.2.8 and later 11.x releases with Express, Nest's exception reply resets that type: the problem body goes out as `application/json` and Nest logs a warning. Earlier Nest 11 releases, Nest 12, and Fastify on either version keep it. The interceptor sets that header when it maps the Err, so an exception filter that rewrites the body should also set its own content type. The same holds for an outer interceptor that recovers from the exception, for example with `catchError`: anything that turns the exception into a different response must set its own content type. `toHttp` cannot set headers: its problem body, without `instance`, goes out as `application/json`. Custom `body` functions are sent as-is, as `application/json`.
 
+An entry can give its own problem `type` URI and `title`, in the defaults or on a route:
+
+```ts
+export const domainDefaults = errorDefaults(
+  { NotFound: { status: 404, type: 'https://example.com/problems/not-found' }, Conflict: 409 },
+  { body: 'problem-details' },
+);
+
+const MapDomainErrors = MapErrors.withDefaults(domainDefaults);
+
+@MapDomainErrors({
+  DealClosed: { status: 409, type: 'https://example.com/problems/deal-closed', title: 'Deal closed' },
+})
+```
+
+The body is the problem details body above with that `type` and `title`; everything else is unchanged. `title` is only accepted next to `type`, because RFC 9457 asks for the reason phrase as the title of `about:blank`; an entry without a `title` takes the reason phrase. Such an entry cannot carry a custom `body`: an entry with a `body` is sent as-is.
+
+The entry only compiles where the compiler knows the format is problem details: in `errorDefaults(map, { body: 'problem-details' })`, and on routes using defaults created that way, through `MapErrors.withDefaults`, the Swagger `MapErrors.withDefaults` and `toHttp(source, map, defaults)`. Anywhere else, `MapErrors(map)`, `toHttp` without defaults, defaults created without `{ body: 'problem-details' }` or typed only as `ErrorDefaults<D>`, it fails with `ProblemTypeWithoutProblemDetails<"DealClosed">`. The compiler reads the format from the type `errorDefaults` returns, so pass that value on rather than annotating it with an `ErrorDefaults` type of your own.
+
 ### Statuses
 
 Error statuses must be literal integers from 400 to 599. `{ DealNotFound: 200 }` or a status typed as `number` fails compilation with `ErrorStatusOutOfRange<...>`, and a status smuggled in through a cast throws `InvalidErrorStatusError` when the map is built.
@@ -197,6 +216,8 @@ It also documents the success status `@nestjs/swagger` would otherwise infer: th
 The default body is documented as `statusCode`, `code` and `message`, where `code` is an enum of the tags at that status that use the default body and have no `schemas` entry, with one example per tag.
 
 With problem details defaults, every status-only entry of the route is documented under `application/problem+json`: as `type`, `title`, `status`, `detail`, `code` and an optional `instance`, with one example per tag, or as its `schemas` entry. Custom bodies stay under `application/json`, so a status with both lists both media types.
+
+Entries with their own problem `type` are documented the same way. `type` and `title` are enums of the values at that status, `about:blank` and the reason phrase standing for entries without their own, and each tag's example carries its entry's `type` and `title`. A family key with its own `type` adds it to the enums too.
 
 With shared defaults, name the defaults the route actually uses, so the document lists only responses the route can produce:
 
