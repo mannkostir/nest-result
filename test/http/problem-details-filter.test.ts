@@ -33,3 +33,30 @@ describe('ProblemDetailsFilter on a non-HTTP host', () => {
     expect(setHeader).not.toHaveBeenCalled();
   });
 });
+
+function httpHostWith(response: object): ExecutionContextHost {
+  return new ExecutionContextHost([{}, response]);
+}
+
+function adapterWithHeadersSent(): ExpressAdapter {
+  const adapter = new ExpressAdapter();
+  vi.spyOn(adapter, 'isHeadersSent').mockReturnValue(true);
+  vi.spyOn(adapter, 'end').mockReturnValue(undefined);
+  return adapter;
+}
+
+describe('ProblemDetailsFilter on an HTTP host whose headers are already sent', () => {
+  it('sets no header', () => {
+    const adapter = adapterWithHeadersSent();
+    const setHeader = vi.spyOn(adapter, 'setHeader');
+    new ProblemDetailsFilter(adapter).catch(new ProblemDetailsException({ status: 404 }, 404), httpHostWith({}));
+    expect(setHeader).not.toHaveBeenCalled();
+  });
+
+  it('ends the response', () => {
+    const adapter = adapterWithHeadersSent();
+    const response = {};
+    new ProblemDetailsFilter(adapter).catch(new ProblemDetailsException({ status: 404 }, 404), httpHostWith(response));
+    expect(adapter.end).toHaveBeenCalledWith(response);
+  });
+});

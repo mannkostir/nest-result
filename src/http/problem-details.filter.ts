@@ -7,7 +7,10 @@ export class ProblemDetailsFilter extends BaseExceptionFilter<ProblemDetailsExce
   override catch(exception: ProblemDetailsException, host: ArgumentsHost): void {
     if (host.getType() !== 'http') throw exception;
     const adapter = this.applicationRef ?? this.httpAdapterHost?.httpAdapter;
-    adapter?.setHeader(host.switchToHttp().getResponse(), 'Content-Type', 'application/problem+json');
+    const response: unknown = host.switchToHttp().getResponse();
+    if (adapter !== undefined && !adapter.isHeadersSent(response)) {
+      adapter.setHeader(response, 'Content-Type', 'application/problem+json');
+    }
     super.catch(exception, host);
   }
 }
