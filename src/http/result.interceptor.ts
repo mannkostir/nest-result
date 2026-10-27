@@ -1,7 +1,7 @@
 import {
   type CallHandler,
   type ExecutionContext,
-  type HttpException,
+  HttpException,
   Inject,
   Injectable,
   type NestInterceptor,
@@ -17,9 +17,10 @@ import {
   type UnmappedErrorTagError,
   type UntaggedErrorValueError,
 } from '../core/library-errors.js';
+import { resolveHttpError } from '../core/resolve-http-error.js';
 import { isResult, isResultAsync, looksLikeForeignResult } from '../core/result-detection.js';
 import { ERROR_MAP_METADATA } from './error-map-metadata.js';
-import { exceptionFor } from './exception-for.js';
+import { ProblemDetailsException } from './problem-details.exception.js';
 
 type HttpExchange = { readonly adapter: AbstractHttpAdapter; readonly request: unknown; readonly response: unknown };
 
@@ -72,12 +73,14 @@ function rejectionFor(
   mapping: ErrorMapping,
   exchange: HttpExchange | undefined,
 ): HttpException | UnmappedErrorTagError | UntaggedErrorValueError {
-  const mapped = exceptionFor(error, mapping, exchange === undefined ? undefined : requestPathOf(exchange));
-  if (mapped.isErr()) return mapped.error;
-  if (mapped.value.problemDetails && exchange !== undefined) {
+  const resolved = resolveHttpError(error, mapping, exchange === undefined ? undefined : requestPathOf(exchange));
+  if (resolved.isErr()) return resolved.error;
+  const { status, body, problemDetails } = resolved.value;
+  if (problemDetails && exchange !== undefined) {
     exchange.adapter.setHeader(exchange.response, 'Content-Type', 'application/problem+json');
+    return new ProblemDetailsException(body, status, { cause: error });
   }
-  return mapped.value.exception;
+  return new HttpException(body, status, { cause: error });
 }
 
 function requestPathOf({ adapter, request }: HttpExchange): string {

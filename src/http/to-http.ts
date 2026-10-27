@@ -13,7 +13,7 @@ export async function toHttp<T, E, const S, D = {}, F extends ErrorBodyFormat = 
   const result = await source;
   if (result.isErr()) {
     throw exceptionFor(result.error, mapping).match(
-      ({ exception }) => exception,
+      (exception) => exception,
       (libraryError) => libraryError,
     );
   }

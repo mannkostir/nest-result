@@ -24,6 +24,7 @@ import {
   InvalidErrorStatusError,
   MapErrors,
   MissingErrorMapError,
+  ProblemDetailsException,
   ResultModule,
   TaggedError,
 } from '../../src/index.js';
@@ -493,5 +494,69 @@ describe.each(platforms)('MapErrors with problem details defaults on %s', (platf
         instance: '/problems/deals/archived',
       },
     });
+  });
+});
+
+describe.each(platforms)('MapErrors exceptions under problem details defaults on %s', (platform) => {
+  let app: INestApplication;
+
+  afterEach(async () => {
+    await app.close();
+  });
+
+  const rejectionAt = async (path: string) => {
+    app = await createApp(platform, {
+      imports: [ResultModule.forRoot()],
+      controllers: [ProblemsController, ProjectsController],
+      providers: recordingProviders,
+    });
+    await request(app.getHttpServer()).get(path);
+    return app.get(ExceptionRecorder).last;
+  };
+
+  it('throws a ProblemDetailsException for a problem default', async () => {
+    const rejection = await rejectionAt('/problems/books/missing');
+    expect(rejection).toBeInstanceOf(ProblemDetailsException);
+  });
+
+  it('throws a problem default as an HttpException', async () => {
+    const rejection = await rejectionAt('/problems/books/missing');
+    expect(rejection).toBeInstanceOf(HttpException);
+  });
+
+  it('carries the status, problem details body and cause of a problem default', async () => {
+    const rejection = (await rejectionAt('/problems/books/missing')) as HttpException;
+    expect({ status: rejection.getStatus(), body: rejection.getResponse(), cause: rejection.cause }).toStrictEqual({
+      status: 404,
+      body: {
+        type: 'about:blank',
+        title: 'Not Found',
+        status: 404,
+        detail: 'Book not found',
+        code: 'BookNotFound',
+        instance: '/problems/books/missing',
+      },
+      cause: expect.any(BookNotFound),
+    });
+  });
+
+  it('throws a custom body under problem defaults as an HttpException', async () => {
+    const rejection = await rejectionAt('/problems/shelves');
+    expect(rejection).toBeInstanceOf(HttpException);
+  });
+
+  it('throws a custom body under problem defaults as no ProblemDetailsException', async () => {
+    const rejection = await rejectionAt('/problems/shelves');
+    expect(rejection).not.toBeInstanceOf(ProblemDetailsException);
+  });
+
+  it('throws a plain default as an HttpException', async () => {
+    const rejection = await rejectionAt('/projects/defaults/project');
+    expect(rejection).toBeInstanceOf(HttpException);
+  });
+
+  it('throws a plain default as no ProblemDetailsException', async () => {
+    const rejection = await rejectionAt('/projects/defaults/project');
+    expect(rejection).not.toBeInstanceOf(ProblemDetailsException);
   });
 });
