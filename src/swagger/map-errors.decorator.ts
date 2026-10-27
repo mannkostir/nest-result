@@ -1,9 +1,10 @@
 import { ApiExtraModels, ApiResponse } from '@nestjs/swagger';
 import type { FailWhen, FirstFailure } from '../core/checks.js';
 import type { UsedDefaultKeys } from '../core/coverage.js';
-import type { ErrorDefaults } from '../core/error-defaults.js';
+import type { ErrorBodyFormat, ErrorDefaults } from '../core/error-defaults.js';
 import type { AnyErrorMap, ErrorMapCheck } from '../core/error-map.js';
 import { errorMappingOf, type ErrorMapping } from '../core/error-mapping.js';
+import type { ProblemTypesCheck } from '../core/problem-types.js';
 import type { ErrorOfReturn, ResultReturningMethod } from '../core/result-source.js';
 import type { FamilyOf } from '../core/tags.js';
 import { applyErrorMap } from '../http/apply-error-map.js';
@@ -51,22 +52,29 @@ export type DocumentedDefaults<U extends string, Fam extends string = never, K e
   readonly schemas?: ErrorSchemas<K>;
 };
 
-export type DocumentedMapErrorsDecorator<M, D, U, Fam = never> = <F extends ResultReturningMethod>(
+export type DocumentedMapErrorsDecorator<
+  M,
+  D,
+  U,
+  Fam = never,
+  P extends ErrorBodyFormat = 'plain',
+> = <F extends ResultReturningMethod>(
   target: object,
   key: string | symbol,
   descriptor: TypedPropertyDescriptor<F> &
     ErrorMapCheck<ErrorOfReturn<ReturnType<F>>, M, D> &
-    DocumentationCheck<ErrorOfReturn<ReturnType<F>>, M, D, U, Fam>,
+    DocumentationCheck<ErrorOfReturn<ReturnType<F>>, M, D, U, Fam> &
+    ProblemTypesCheck<M, P>,
 ) => void;
 
-export type DocumentedMapErrorsWithDefaults<D> = <
+export type DocumentedMapErrorsWithDefaults<D, F extends ErrorBodyFormat = ErrorBodyFormat> = <
   const M extends AnyErrorMap,
   const U extends keyof D & string = never,
   const Fam extends string = never,
 >(
   map: M,
   documentation: DocumentedDefaults<U, Fam, NoInfer<(keyof M & string) | U>>,
-) => DocumentedMapErrorsDecorator<M, D, U, Fam>;
+) => DocumentedMapErrorsDecorator<M, D, U, Fam, F>;
 
 type Decorate = (target: object, key: string | symbol, descriptor: PropertyDescriptor) => void;
 
@@ -77,7 +85,9 @@ function documentedMapErrors<const M extends AnyErrorMap, const Fam extends stri
   return documentWith(errorMappingOf(map), map, documentation);
 }
 
-function withDefaults<D extends AnyErrorMap>(defaults: ErrorDefaults<D>): DocumentedMapErrorsWithDefaults<D> {
+function withDefaults<D extends AnyErrorMap, F extends ErrorBodyFormat = ErrorBodyFormat>(
+  defaults: ErrorDefaults<D, F>,
+): DocumentedMapErrorsWithDefaults<D, F> {
   return (map, { uses, ...documentation }) =>
     documentWith(errorMappingOf(map, defaults), { ...pickKeys(defaults, uses), ...map }, documentation);
 }

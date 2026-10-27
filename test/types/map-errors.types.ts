@@ -1,5 +1,5 @@
 import type { Result, ResultAsync } from 'neverthrow';
-import { errorDefaults, MapErrors, TaggedError } from '../../src/index.js';
+import { errorDefaults, MapErrors, TaggedError, type ErrorStatus } from '../../src/index.js';
 
 class DealNotFound extends TaggedError('DealNotFound')<{ dealId: string }> {}
 class AccessDenied extends TaggedError('AccessDenied') {}
@@ -12,6 +12,12 @@ class ProjectNotFound extends TaggedError('ProjectNotFound', { family: 'NotFound
 declare const family: ResultAsync<number, TaskNotFound | ProjectNotFound | AccessDenied>;
 
 const MapDomainErrors = MapErrors.withDefaults(errorDefaults({ NotFound: 404, Conflict: 409 }));
+const MapProblemErrors = MapErrors.withDefaults(
+  errorDefaults(
+    { NotFound: { status: 404, type: 'https://example.com/problems/not-found', title: 'Not found' }, Conflict: 409 },
+    { body: 'problem-details' },
+  ),
+);
 
 export class TypedController {
   @MapErrors({ DealNotFound: 404, AccessDenied: 403 })
@@ -136,4 +142,46 @@ export class TypedController {
   withDefaultsStale(): ResultAsync<number, TaskNotFound | ProjectNotFound | AccessDenied> {
     return family;
   }
+
+  @MapProblemErrors({ AccessDenied: { status: 403, type: 'https://example.com/problems/access-denied' } })
+  problemType(): ResultAsync<number, TaskNotFound | ProjectNotFound | AccessDenied> {
+    return family;
+  }
+
+  @MapErrors({ DealNotFound: { status: 404, type: 'https://example.com/problems/deal-not-found', body: () => ({}) }, AccessDenied: 403 })
+  customBodyWithProblemType(): ResultAsync<{ id: string }, DealNotFound | AccessDenied> {
+    return both;
+  }
+
+  // @ts-expect-error
+  @MapErrors({ DealNotFound: { status: 404, type: 'https://example.com/problems/deal-not-found' }, AccessDenied: 403 })
+  plainProblemType(): ResultAsync<{ id: string }, DealNotFound | AccessDenied> {
+    return both;
+  }
+
+  // @ts-expect-error
+  @MapDomainErrors({ AccessDenied: { status: 403, type: 'https://example.com/problems/access-denied' } })
+  plainDefaultsProblemType(): ResultAsync<number, TaskNotFound | ProjectNotFound | AccessDenied> {
+    return family;
+  }
+
+  // @ts-expect-error
+  @MapProblemErrors({ AccessDenied: { status: 403, title: 'Access denied' } })
+  titleWithoutType(): ResultAsync<number, TaskNotFound | ProjectNotFound | AccessDenied> {
+    return family;
+  }
+
+  // @ts-expect-error
+  @MapProblemErrors({ AccessDenied: { status: 403, type: 'https://example.com/problems/access-denied' }, Stale: 500 })
+  problemTypeStale(): ResultAsync<number, TaskNotFound | ProjectNotFound | AccessDenied> {
+    return family;
+  }
+}
+
+export function mapErrorsOf<M extends Record<string, ErrorStatus>>(map: M) {
+  return MapErrors(map);
+}
+
+export function mapDomainErrorsOf<M extends Record<string, ErrorStatus>>(map: M) {
+  return MapDomainErrors(map);
 }

@@ -84,6 +84,28 @@ describe('compiler diagnostics for common mistakes', () => {
     expect(diagnostics.get('swagger-shadowed-family')).not.toContain('FamilyKeys');
   });
 
+  it('names a problem type entry on a plain MapErrors map', () => {
+    expect(diagnostics.get('decorator-problem-type-plain')).toContain(
+      'ProblemTypeWithoutProblemDetails<"DealNotFound">',
+    );
+  });
+
+  it('names a problem type entry in toHttp without problem details defaults', () => {
+    expect(diagnostics.get('to-http-problem-type-plain')).toContain('ProblemTypeWithoutProblemDetails<"DealNotFound">');
+  });
+
+  it('names a problem type entry in defaults created without problem details', () => {
+    expect(diagnostics.get('error-defaults-problem-type-plain')).toContain(
+      'ProblemTypeWithoutProblemDetails<"NotFound">',
+    );
+  });
+
+  it('names a problem type entry on a Swagger MapErrors with plain defaults', () => {
+    expect(diagnostics.get('swagger-problem-type-plain')).toContain(
+      'ProblemTypeWithoutProblemDetails<"DealNotFound">',
+    );
+  });
+
   it('names the unhandled tag when matchError omits a handler', () => {
     expect(diagnostics.get('match-error-missing')).toContain('MissingErrorHandlers<"AccessDenied">');
   });

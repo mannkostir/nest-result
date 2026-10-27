@@ -1,6 +1,6 @@
 import { expectTypeOf } from 'expect-type';
 import type { Result, ResultAsync } from 'neverthrow';
-import { errorDefaults, TaggedError, toHttp, type ErrorMap } from '../../src/index.js';
+import { errorDefaults, TaggedError, toHttp, type ErrorDefaults, type ErrorMap } from '../../src/index.js';
 
 class DealNotFound extends TaggedError('DealNotFound')<{ dealId: string }> {}
 class AccessDenied extends TaggedError('AccessDenied') {}
@@ -107,7 +107,20 @@ errorDefaults({ NotFound: 302 });
 
 const problemDefaults = errorDefaults({ NotFound: 404, Conflict: 409 }, { body: 'problem-details' });
 
-expectTypeOf(problemDefaults).toEqualTypeOf(domainDefaults);
+expectTypeOf(problemDefaults).toMatchTypeOf(domainDefaults);
+expectTypeOf(domainDefaults).toMatchTypeOf(problemDefaults);
+expectTypeOf(problemDefaults).toMatchTypeOf<ErrorDefaults<{ readonly NotFound: 404; readonly Conflict: 409 }>>();
+expectTypeOf(problemDefaults).toEqualTypeOf<
+  ErrorDefaults<{ readonly NotFound: 404; readonly Conflict: 409 }, 'problem-details'>
+>();
+expectTypeOf(domainDefaults).toEqualTypeOf<ErrorDefaults<{ readonly NotFound: 404; readonly Conflict: 409 }>>();
+expectTypeOf(
+  toHttp<number, TaskNotFound | ProjectNotFound | AccessDenied, { AccessDenied: 403 }, { readonly NotFound: 404; readonly Conflict: 409 }>(
+    family,
+    { AccessDenied: 403 },
+    problemDefaults,
+  ),
+).toEqualTypeOf<Promise<number>>();
 expectTypeOf(toHttp(family, { AccessDenied: 403 }, problemDefaults)).toEqualTypeOf<Promise<number>>();
 
 // @ts-expect-error
@@ -122,3 +135,75 @@ const incompleteSatisfiedMap = { NotFound: 404 } as const satisfies ErrorMap<Tas
 
 // @ts-expect-error
 toHttp(family, incompleteSatisfiedMap);
+
+const problemTypeDefaults = errorDefaults(
+  { NotFound: { status: 404, type: 'https://example.com/problems/not-found' }, Conflict: 409 },
+  { body: 'problem-details' },
+);
+
+expectTypeOf(
+  toHttp(
+    family,
+    { AccessDenied: { status: 403, type: 'https://example.com/problems/access-denied', title: 'Access denied' } },
+    problemDefaults,
+  ),
+).toEqualTypeOf<Promise<number>>();
+expectTypeOf(toHttp(family, { AccessDenied: 403 }, problemTypeDefaults)).toEqualTypeOf<Promise<number>>();
+
+toHttp(
+  family,
+  {
+    AccessDenied: {
+      status: 403,
+      body: (error) => {
+        expectTypeOf(error).toEqualTypeOf<AccessDenied>();
+        return {};
+      },
+    },
+    TaskNotFound: { status: 404, type: 'https://example.com/problems/task-not-found' },
+  },
+  problemDefaults,
+);
+
+// @ts-expect-error
+toHttp(both, { DealNotFound: { status: 404, type: 'https://example.com/problems/deal-not-found' }, AccessDenied: 403 });
+
+// @ts-expect-error
+toHttp(family, { AccessDenied: { status: 403, type: 'https://example.com/problems/access-denied' } }, domainDefaults);
+
+declare const unknownFormatDefaults: ErrorDefaults<{ readonly NotFound: 404 }>;
+
+// @ts-expect-error
+toHttp(family, { AccessDenied: { status: 403, type: 'https://example.com/problems/access-denied' } }, unknownFormatDefaults);
+
+// @ts-expect-error
+toHttp(family, { AccessDenied: { status: 403, title: 'Access denied' } }, problemDefaults);
+
+// @ts-expect-error
+toHttp(family, { AccessDenied: { status: 302, type: 'https://example.com/problems/access-denied' } }, problemDefaults);
+
+toHttp(
+  family,
+  {
+    // @ts-expect-error
+    AccessDenied: { status: 403, type: 'https://example.com/problems/access-denied', body: () => ({}) },
+  },
+  problemDefaults,
+);
+
+toHttp(both, {
+  // @ts-expect-error
+  DealNotFound: { status: 404, type: 'https://example.com/problems/deal-not-found', body: () => ({}) },
+  AccessDenied: 403,
+});
+
+// @ts-expect-error
+errorDefaults({ NotFound: { status: 404, type: 'https://example.com/problems/not-found' } });
+
+const declaredOptions: { readonly body?: 'problem-details' } = { body: 'problem-details' };
+
+// @ts-expect-error
+errorDefaults({ NotFound: { status: 404, type: 'https://example.com/problems/not-found' } }, declaredOptions);
+
+// @ts-expect-error
+errorDefaults({ NotFound: { status: 302, type: 'https://example.com/problems/not-found' } }, { body: 'problem-details' });
