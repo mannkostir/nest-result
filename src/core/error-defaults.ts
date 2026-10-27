@@ -25,7 +25,7 @@ type StatusCheck<D> = [OutOfRangeStatuses<D>] extends [never] ? unknown : ErrorS
 const bodyFormatKey = Symbol('bodyFormat');
 
 export function errorDefaults<const D extends AnyErrorMap, const O extends ErrorDefaultsOptions = {}>(
-  defaults: D & FirstFailure<[StatusCheck<D>, ProblemTypesCheck<D, CheckedFormat<O>>]>,
+  defaults: D & FirstFailure<[ProblemTypesCheck<D, CheckedFormat<O>>, StatusCheck<D>]>,
   options?: O,
 ): ErrorDefaults<D, DeclaredFormat<O>> {
   assertErrorStatuses(defaults);

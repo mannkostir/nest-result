@@ -1,3 +1,4 @@
+import type { FirstFailure } from '../core/checks.js';
 import type { ErrorBodyFormat, ErrorDefaults } from '../core/error-defaults.js';
 import type { AnyErrorMap, ErrorMapCheck } from '../core/error-map.js';
 import { errorMappingOf, type ErrorMapping } from '../core/error-mapping.js';
@@ -8,7 +9,8 @@ import { applyErrorMap } from './apply-error-map.js';
 export type MapErrorsDecorator<M, D = {}, P extends ErrorBodyFormat = 'plain'> = <F extends ResultReturningMethod>(
   target: object,
   key: string | symbol,
-  descriptor: TypedPropertyDescriptor<F> & ErrorMapCheck<ErrorOfReturn<ReturnType<F>>, M, D> & ProblemTypesCheck<M, P>,
+  descriptor: TypedPropertyDescriptor<F> &
+    FirstFailure<[ProblemTypesCheck<M, P>, ErrorMapCheck<ErrorOfReturn<ReturnType<F>>, M, D>]>,
 ) => void;
 
 export type MapErrorsWithDefaults<D, F extends ErrorBodyFormat = ErrorBodyFormat> = <const M extends AnyErrorMap>(

@@ -62,9 +62,8 @@ export type DocumentedMapErrorsDecorator<
   target: object,
   key: string | symbol,
   descriptor: TypedPropertyDescriptor<F> &
-    ErrorMapCheck<ErrorOfReturn<ReturnType<F>>, M, D> &
-    DocumentationCheck<ErrorOfReturn<ReturnType<F>>, M, D, U, Fam> &
-    ProblemTypesCheck<M, P>,
+    FirstFailure<[ProblemTypesCheck<M, P>, ErrorMapCheck<ErrorOfReturn<ReturnType<F>>, M, D>]> &
+    (unknown extends ProblemTypesCheck<M, P> ? DocumentationCheck<ErrorOfReturn<ReturnType<F>>, M, D, U, Fam> : unknown),
 ) => void;
 
 export type DocumentedMapErrorsWithDefaults<D, F extends ErrorBodyFormat = ErrorBodyFormat> = <

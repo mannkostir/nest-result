@@ -1,6 +1,16 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { compileFixtures } from './compile-fixtures.js';
 
+const competingMarkers = [
+  'MissingErrorMapKeys',
+  'MissingDefaultUses',
+  'ErrorStatusOutOfRange',
+  'ProblemTypeWithoutProblemDetails',
+];
+
+const markersIn = (diagnostic: string | undefined): readonly string[] =>
+  competingMarkers.filter((marker) => diagnostic?.includes(`${marker}<`));
+
 describe('compiler diagnostics for common mistakes', () => {
   let diagnostics: ReadonlyMap<string, string>;
 
@@ -104,6 +114,22 @@ describe('compiler diagnostics for common mistakes', () => {
     expect(diagnostics.get('swagger-problem-type-plain')).toContain(
       'ProblemTypeWithoutProblemDetails<"DealNotFound">',
     );
+  });
+
+  it('names only the problem type entry when a plain MapErrors map also misses a tag', () => {
+    expect(markersIn(diagnostics.get('decorator-problem-type-missing-key'))).toEqual(['ProblemTypeWithoutProblemDetails']);
+  });
+
+  it('names only the problem type entry when a Swagger MapErrors route with plain defaults also misses a use', () => {
+    expect(markersIn(diagnostics.get('swagger-problem-type-missing-uses'))).toEqual(['ProblemTypeWithoutProblemDetails']);
+  });
+
+  it('names only the problem type entry when a plain toHttp map also misses a tag', () => {
+    expect(markersIn(diagnostics.get('to-http-problem-type-missing-key'))).toEqual(['ProblemTypeWithoutProblemDetails']);
+  });
+
+  it('names only the problem type entry when plain defaults also hold a status outside 400–599', () => {
+    expect(markersIn(diagnostics.get('error-defaults-problem-type-status'))).toEqual(['ProblemTypeWithoutProblemDetails']);
   });
 
   it('names the unhandled tag when matchError omits a handler', () => {
